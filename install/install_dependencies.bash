@@ -33,7 +33,7 @@ create_virtualenv() {
 # Function to install Python packages inside virtual environment
 install_python_packages() {
     echo "Installing Python packages..."
-    source venv/bin/activate
+    source ../env/bin/activate
 
     pip install -r requirements.txt
 
