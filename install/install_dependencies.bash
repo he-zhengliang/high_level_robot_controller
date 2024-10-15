@@ -3,6 +3,8 @@
 # List of system packages to check and install
 SYSTEM_PACKAGES=("python3 python3-venv" "python3-pip" "graphviz")
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Function to check and install system packages
 install_system_packages() {
     echo "Checking and installing system packages..."
@@ -20,7 +22,7 @@ install_system_packages() {
 # Function to create Python virtual environment
 create_virtualenv() {
     echo "Creating Python virtual environment..."
-    python3 -m venv ../env
+    python3 -m venv $SCRIPT_DIR/../env
 
     if [ $? -eq 0 ]; then
         echo "Virtual environment created successfully."
@@ -33,9 +35,9 @@ create_virtualenv() {
 # Function to install Python packages inside virtual environment
 install_python_packages() {
     echo "Installing Python packages..."
-    source ../env/bin/activate
+    source $SCRIPT_DIR/../env/bin/activate
 
-    pip install -r requirements.txt
+    pip install -r $SCRIPT_DIR/requirements.txt
 
     deactivate
 }
