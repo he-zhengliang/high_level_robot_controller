@@ -1,10 +1,7 @@
 #!/bin/bash
 
-# List of Python packages to install
-PYTHON_PACKAGES=("numpy" "pandas" "requests")
-
 # List of system packages to check and install
-SYSTEM_PACKAGES=("python3-venv" "python3-pip" "graphviz")
+SYSTEM_PACKAGES=("python3 python3-venv" "python3-pip" "graphviz")
 
 # Function to check and install system packages
 install_system_packages() {
@@ -23,7 +20,7 @@ install_system_packages() {
 # Function to create Python virtual environment
 create_virtualenv() {
     echo "Creating Python virtual environment..."
-    python3 -m venv venv
+    python3 -m venv ../env
 
     if [ $? -eq 0 ]; then
         echo "Virtual environment created successfully."
@@ -38,14 +35,7 @@ install_python_packages() {
     echo "Installing Python packages..."
     source venv/bin/activate
 
-    for package in "${PYTHON_PACKAGES[@]}"; do
-        pip install $package
-        if [ $? -eq 0 ]; then
-            echo "$package installed successfully."
-        else
-            echo "Failed to install $package." >&2
-        fi
-    done
+    pip install -r requirements.txt
 
     deactivate
 }
