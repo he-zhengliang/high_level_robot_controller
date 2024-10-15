@@ -1,0 +1,62 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+    <world name="other_stuff">
+        <model name="ground">
+            <static>true</static>
+            <link name="ground">
+                <collision name="ground_collision">
+                    <pose>0 0 -0.5 0 0 0</pose>
+                    <geometry>
+                        <box>
+                            <size>100 100 1</size>
+                        </box>
+                    </geometry>
+                </collision>
+                <visual name="ground_visual">
+                    <pose>0 0 -0.5 0 0 0</pose>
+                    <geometry>
+                        <box>
+                            <size>100 100 1</size>
+                        </box>
+                    </geometry>
+                    <material>
+                        <ambient>0 0 0 0</ambient>
+                        <specular>0 0 0 0</specular>
+                        <diffuse>0 0 0 0</diffuse>
+                    </material>
+                </visual>
+            </link>
+        </model>
+        <model name="ball">
+            <pose>0.7 0.0 0.2 0 0 0</pose>
+            <static>false</static>
+            <link name="ball">
+                <inertial>
+                    <mass>0.1</mass>
+                </inertial>
+                <visual name="ball_visual">
+                    <geometry>
+                        <ellipsoid>
+                            <radii>0.07 0.07 0.06</radii>
+                        </ellipsoid>
+                    </geometry>
+                </visual>
+                <collision name="ball_collision">
+                    <geometry>
+                        <ellipsoid>
+                            <radii>0.07 0.07 0.06</radii>
+                        </ellipsoid>
+                    </geometry>
+                    <drake:proximity_properties>
+                        <drake:compliant_hydroelastic/>
+                        <drake:mesh_resolution_hint>0.025</drake:mesh_resolution_hint>
+                        <drake:hydroelastic_modulus>5e7</drake:hydroelastic_modulus>
+                        <drake:hunt_crossley_dissipation>1.25</drake:hunt_crossley_dissipation>
+                        <drake:mu_static>1.15</drake:mu_static>
+                        <drake:mu_dynamic>0.7</drake:mu_dynamic>
+                    </drake:proximity_properties>
+                </collision>
+            </link>
+        </model>
+    </world>
+</sdf>
