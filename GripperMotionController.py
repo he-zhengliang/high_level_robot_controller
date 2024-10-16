@@ -12,8 +12,8 @@ class GripperMotionController(LeafSystem):
         self.DeclareVectorInputPort("svh_net_actuation", BasicVector(np.zeros()))
         self.DeclareVectorOutputPort("svh_desired_state", BasicVector(np.zeros()))
         self.DeclareVectorOutputPort("svh_feedforward Torque", BasicVector(np.zeros()))
-        self.DeclareAbstractInputPort("X_OG", AbstractValue().Make(RigidTransform()))
-        self.DeclareAbstractInputPort("object_point_cloud", AbstractValue().Make(PointCloud()))
+        self.DeclareAbstractInputPort("X_OG", AbstractValue.Make(RigidTransform()))
+        self.DeclareAbstractInputPort("object_point_cloud", AbstractValue.Make(PointCloud()))
 
         def CalcDesiredState(self, context:Context, output:BasicVector):
             output.SetZero()

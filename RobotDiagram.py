@@ -1,6 +1,6 @@
 import numpy as np
 from pydrake.multibody.plant import MultibodyPlant, DiscreteContactApproximation, AddMultibodyPlantSceneGraph, ContactModel
-from pydrake.systems.sensors import RgbdSensor, CameraInfo
+from pydrake.systems.sensors import RgbdSensor, CameraInfo, RgbdSensorDiscrete
 from pydrake.geometry import (
     CollisionFilterDeclaration, 
     GeometrySet, 
@@ -16,8 +16,10 @@ from pydrake.geometry import (
 from pydrake.visualization import AddDefaultVisualization
 from pydrake.math import RotationMatrix, RigidTransform
 from pydrake.multibody.parsing import Parser
+from pydrake.systems.primitives import ConstantValueSource
 from pydrake.systems.controllers import InverseDynamicsController
-from pydrake.systems.framework import Diagram, DiagramBuilder, System
+from pydrake.systems.framework import Diagram, DiagramBuilder
+from pydrake.common.value import AbstractValue # type: ignore
 from pydrake.perception import DepthImageToPointCloud
 
 
@@ -45,9 +47,9 @@ def abb_inverse_dynamics_controller() -> InverseDynamicsController:
     gripper = plant.GetBodyByName("gripper_frame")
     gripper.SetSpatialInertiaInBodyFrame(context, svh_I)
 
-    Kp = np.array([10.0, 10.0, 10.0, 10.0, 20.0, 20.0])*5
+    Kp = np.array([50.0, 50.0, 50.0, 50.0, 100.0, 100.0])
     Ki = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-    Kd = np.array([50.0, 50.0, 50.0, 50.0, 100.0, 100.0])*5
+    Kd = np.array([250.0, 250.0, 250.0, 250.0, 500.0, 500.0])
 
     return InverseDynamicsController(plant, Kp, Ki, Kd, False, context)
 
@@ -119,11 +121,12 @@ class RobotDiagram(Diagram):
         cam0 = builder.AddSystem(RgbdSensor(scene_graph.world_frame_id(), camera_pos, color_camera, depth_camera))
         builder.Connect(scene_graph.get_query_output_port(), cam0.get_input_port())
 
-        im_to_pc:System = builder.AddSystem(DepthImageToPointCloud(depth_camera_info))
+        im_to_pc = builder.AddSystem(DepthImageToPointCloud(depth_camera_info))
         builder.Connect(cam0.GetOutputPort("depth_image_32f"), im_to_pc.depth_image_input_port())
-        context = im_to_pc.CreateDefaultContext()
-        im_to_pc.camera_pose_input_port().FixValue(context, camera_pos)
-        im_to_pc.SetDefaultContext(context)
+        # builder.Connect(cam0.GetOutputPort("color_image"), im_to_pc.color_image_input_port())
+
+        camera_pos_src = builder.AddSystem(ConstantValueSource(AbstractValue.Make(camera_pos)))
+        builder.Connect(camera_pos_src.get_output_port(), im_to_pc.camera_pose_input_port())
 
         abb_controller = builder.AddSystem(abb_inverse_dynamics_controller())
         builder.Connect(abb_controller.get_output_port(), plant.get_actuation_input_port(robot))
@@ -140,4 +143,4 @@ class RobotDiagram(Diagram):
         builder.ExportOutput(im_to_pc.get_output_port(), "point_cloud")
         
         AddDefaultVisualization(builder, meshcat=meshcat)
-        diagram:Diagram = builder.BuildInto(self)
+        diagram = builder.BuildInto(self)
