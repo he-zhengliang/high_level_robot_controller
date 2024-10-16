@@ -71,8 +71,6 @@ class RobotDiagram(Diagram):
 
         self.camera_pos_ = None
 
-        plant:MultibodyPlant
-        scene_graph:SceneGraph
         plant, scene_graph = AddMultibodyPlantSceneGraph(builder, sim_time_step)
 
         plant.set_discrete_contact_approximation(DiscreteContactApproximation.kSap)
@@ -98,8 +96,8 @@ class RobotDiagram(Diagram):
         engine = MakeRenderEngineGl(RenderEngineGlParams())
         scene_graph.AddRenderer("default_renderer", engine)
         
-        color_camera = ColorRenderCamera(RenderCameraCore("default_renderer", CameraInfo(1000, 1000, 1.0), ClippingRange(0.1, 10.0), RigidTransform()))
-        depth_camera = DepthRenderCamera(RenderCameraCore("default_renderer", CameraInfo(1000, 1000, 1.0), ClippingRange(0.1, 10.0), RigidTransform()), DepthRange(0.1, 10.0))
+        color_camera = ColorRenderCamera(RenderCameraCore("default_renderer", CameraInfo(1920, 1080, 1322.77924362, 1310.10452962, 1920/2-0.5, 1080/2-0.5), ClippingRange(0.1, 10.0), RigidTransform()))
+        depth_camera = DepthRenderCamera(RenderCameraCore("default_renderer", CameraInfo(1280, 720, 634.0862423, 629.433346922, 1280/2-0.5, 800/2-0.5), ClippingRange(0.1, 10.0), RigidTransform()), DepthRange(0.28, 10.0))
     
         camera_pos = get_camera_pose(np.array([1.0, 0.5, 1.0]), np.array([0.7, 0.0, 0.0]))
         self.camera_pos_ = camera_pos

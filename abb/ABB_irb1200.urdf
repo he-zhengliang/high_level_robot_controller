@@ -12,6 +12,9 @@
             <geometry>
                 <mesh filename="meshes/base_stan.obj" scale="0.001"/>
             </geometry>
+            <material name="abb_grey">
+                <color rgba = "0.945 0.945 0.945 1.0"/>
+            </material>
         </visual>
     </link>
 
@@ -26,6 +29,7 @@
             <geometry>
                 <mesh filename="meshes/swing.obj" scale="0.001"/>
             </geometry>
+            <material name="abb_grey"/>
         </visual>
     </link>
 
@@ -40,6 +44,7 @@
             <geometry>
                 <mesh filename="meshes/lower arm_900.obj" scale="0.001"/>
             </geometry>
+            <material name="abb_grey"/>
         </visual>
     </link>
 
@@ -54,6 +59,7 @@
             <geometry>
                 <mesh filename="meshes/housing_900.obj" scale="0.001"/>
             </geometry>
+            <material name="abb_grey"/>
         </visual>
     </link>
 
@@ -68,6 +74,7 @@
             <geometry>
                 <mesh filename="meshes/tubular_(900).obj" scale="0.001"/>
             </geometry>
+            <material name="abb_grey"/>
         </visual>
     </link>
 
@@ -82,6 +89,7 @@
             <geometry>
                 <mesh filename="meshes/tilt_(900)_Non-foundry option.obj" scale="0.001"/>
             </geometry>
+            <material name="abb_grey"/>
         </visual>
     </link>
 
@@ -96,6 +104,7 @@
             <geometry>
                 <mesh filename="meshes/disk_(900).obj" scale="0.001"/>
             </geometry>
+            <material name="abb_grey"/>
         </visual>
     </link>
 
