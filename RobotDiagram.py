@@ -115,6 +115,7 @@ class RobotDiagram(Diagram):
         builder.ExportOutput(plant.get_state_output_port(svh), "svh_state")
         builder.ExportOutput(plant.get_net_actuation_output_port(svh), "svh_net_actuation")
         builder.ExportOutput(cam0.GetOutputPort("color_image"), "camera0_color_image")
+        builder.ExportOutput(cam0.GetOutputPort("depth_image_32f"), "camera0_depth_image")
         
         AddDefaultVisualization(builder, meshcat=meshcat)
         diagram = builder.BuildInto(self)
