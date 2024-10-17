@@ -115,11 +115,14 @@ class RobotDiagram(Diagram):
         
         color_camera = ColorRenderCamera(RenderCameraCore("default_renderer", color_camera_info, ClippingRange(0.1, 10.0), RigidTransform()))
         depth_camera = DepthRenderCamera(RenderCameraCore("default_renderer", depth_camera_info, ClippingRange(0.1, 10.0), RigidTransform()), DepthRange(0.28, 10.0))
-    
-        camera_pos = get_camera_pose(np.array([1.0, 0.5, 1.0]), np.array([0.7, 0.0, 0.0]))
-        self.camera_pos_ = camera_pos
-        cam0 = builder.AddSystem(RgbdSensor(scene_graph.world_frame_id(), camera_pos, color_camera, depth_camera))
+        self.camera_pose_0 = get_camera_pose(np.array([1.1559625, 0.76555, 1.018]), np.array([0.7, 0.0, 0.0]))
+        self.camera_pose_1 = get_camera_pose(np.array([1.1559625, -0.76555, 1.018]), np.array([0.7, 0.0, 0.0]))
+
+        cam0 = builder.AddSystem(RgbdSensor(scene_graph.world_frame_id(), self.camera_pose_0, color_camera, depth_camera))
+        cam1 = builder.AddSystem(RgbdSensor(scene_graph.world_frame_id(), self.camera_pose_1, color_camera, depth_camera))
+
         builder.Connect(scene_graph.get_query_output_port(), cam0.get_input_port())
+        builder.Connect(scene_graph.get_query_output_port(), cam1.get_input_port())
 
         im_to_pc = builder.AddSystem(DepthImageToPointCloud(depth_camera_info))
         builder.Connect(cam0.GetOutputPort("depth_image_32f"), im_to_pc.depth_image_input_port())
@@ -138,9 +141,13 @@ class RobotDiagram(Diagram):
         builder.ExportOutput(plant.get_state_output_port(robot), "irb1200_state")
         builder.ExportOutput(plant.get_state_output_port(svh), "svh_state")
         builder.ExportOutput(plant.get_net_actuation_output_port(svh), "svh_net_actuation")
+        
         builder.ExportOutput(cam0.GetOutputPort("color_image"), "camera0_color_image")
         builder.ExportOutput(cam0.GetOutputPort("depth_image_32f"), "camera0_depth_image")
         builder.ExportOutput(im_to_pc.get_output_port(), "point_cloud")
+        builder.ExportOutput(cam1.GetOutputPort("color_image"), "camera1_color_image")
+        builder.ExportOutput(cam1.GetOutputPort("depth_image_32f"), "camera1_depth_image")
+
         
         AddDefaultVisualization(builder, meshcat=meshcat)
         diagram = builder.BuildInto(self)
