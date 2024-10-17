@@ -147,6 +147,4 @@ class AbbMotionPlanner(LeafSystem):
         result = Solve(prog)
         if not result.is_success():
             print("optimization failed")
-        else:
-            print("optimization succeeded")
         self.traj = trajopt.ReconstructTrajectory(result)

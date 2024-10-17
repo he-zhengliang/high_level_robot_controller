@@ -16,12 +16,9 @@ from pydrake.geometry import (
 from pydrake.visualization import AddDefaultVisualization
 from pydrake.math import RotationMatrix, RigidTransform
 from pydrake.multibody.parsing import Parser
-from pydrake.systems.primitives import ConstantValueSource
 from pydrake.systems.controllers import InverseDynamicsController
 from pydrake.systems.framework import Diagram, DiagramBuilder
-from pydrake.common.value import AbstractValue # type: ignore
-from pydrake.perception import DepthImageToPointCloud
-
+from pydrake.perception import DepthImageToPointCloud, Fields, BaseField
 
 def get_svh_geometry_filter(plant:MultibodyPlant) -> CollisionFilterDeclaration:
     svh_collision_set = GeometrySet()
@@ -63,7 +60,6 @@ def get_camera_pose(camera_position:np.ndarray, focus_point:np.ndarray=np.zeros(
             x_rot_angle = -np.pi / 2
     else:
         x_rot_angle = np.arctan(focus_translation[2] / base_length)
-        print("standard_case_x")
     if abs(focus_translation[0]) < 0.0001:
         if focus_translation[1] > 0:
             z_rotation = np.pi/2
@@ -71,13 +67,12 @@ def get_camera_pose(camera_position:np.ndarray, focus_point:np.ndarray=np.zeros(
             z_rotation = -np.pi/2
     else:
         z_rotation = np.arctan(focus_translation[1]/focus_translation[0])
-        print("standard_case_z")
 
     camera_rot = RotationMatrix.MakeZRotation(np.pi/2+z_rotation) @ RotationMatrix.MakeXRotation(-np.pi/2 - x_rot_angle)
     return RigidTransform(camera_rot, camera_position)
 
 class RobotDiagram(Diagram):
-    def __init__(self, sim_time_step:float, meshcat:Meshcat=None, hydroelastic_contact:bool=False, models_to_add:list[str]=[]):
+    def __init__(self, sim_time_step:float, meshcat:Meshcat=None, hydroelastic_contact:bool=False, models_to_add:list[str]=[], pc_fields=BaseField.kXYZs):
         super().__init__()
         builder = DiagramBuilder()
         if sim_time_step <= 0:
@@ -106,17 +101,39 @@ class RobotDiagram(Diagram):
         plant.WeldFrames(plant.GetFrameByName("gripper_frame"), plant.GetFrameByName("base_link"))
         plant.Finalize()
 
-        print(scene_graph.RendererCount())
         engine = MakeRenderEngineGl(RenderEngineGlParams())
         scene_graph.AddRenderer("default_renderer", engine)
 
-        color_camera_info = CameraInfo(1920, 1080, 1322.77924362, 1310.10452962, 1920/2-0.5, 1080/2-0.5)
-        depth_camera_info = CameraInfo(1280, 720, 634.0862423, 629.433346922, 1280/2-0.5, 800/2-0.5)
+        camera_pix_w = 1280
+        camera_pix_h = 720
+        depth_camera_sensor_w = 3.896
+        depth_camera_sensor_h = 2.453
+        depth_camera_focal_length = 1.93
+        color_camera_sensor_w = 2.7288
+        color_camera_sensor_h = 1.5498
+        color_camera_focal_length = 1.88
+
+        color_camera_info = CameraInfo(
+            camera_pix_w, 
+            camera_pix_h, 
+            color_camera_focal_length * camera_pix_w/color_camera_sensor_w, 
+            color_camera_focal_length * camera_pix_h/color_camera_sensor_h, 
+            camera_pix_w/2-0.5, 
+            camera_pix_h/2-0.5
+        )
+        depth_camera_info = CameraInfo(
+            camera_pix_w, 
+            camera_pix_h, 
+            depth_camera_focal_length * camera_pix_w/depth_camera_sensor_w, 
+            depth_camera_focal_length * camera_pix_h/depth_camera_sensor_h, 
+            camera_pix_w/2-0.5, 
+            camera_pix_h/2-0.5
+        )
         
         color_camera = ColorRenderCamera(RenderCameraCore("default_renderer", color_camera_info, ClippingRange(0.1, 10.0), RigidTransform()))
         depth_camera = DepthRenderCamera(RenderCameraCore("default_renderer", depth_camera_info, ClippingRange(0.1, 10.0), RigidTransform()), DepthRange(0.28, 10.0))
-        self.camera_pose_0 = get_camera_pose(np.array([1.1559625, 0.76555, 1.018]), np.array([0.7, 0.0, 0.0]))
-        self.camera_pose_1 = get_camera_pose(np.array([1.1559625, -0.76555, 1.018]), np.array([0.7, 0.0, 0.0]))
+        self.camera_pose_0 = get_camera_pose(np.array([1.1559625, 0.76555, 0.7]), np.array([0.7, 0.0, 0.0]))
+        self.camera_pose_1 = get_camera_pose(np.array([1.1559625, -0.76555, 0.7]), np.array([0.7, 0.0, 0.0]))
 
         cam0 = builder.AddSystem(RgbdSensor(scene_graph.world_frame_id(), self.camera_pose_0, color_camera, depth_camera))
         cam1 = builder.AddSystem(RgbdSensor(scene_graph.world_frame_id(), self.camera_pose_1, color_camera, depth_camera))
@@ -124,12 +141,16 @@ class RobotDiagram(Diagram):
         builder.Connect(scene_graph.get_query_output_port(), cam0.get_input_port())
         builder.Connect(scene_graph.get_query_output_port(), cam1.get_input_port())
 
-        im_to_pc = builder.AddSystem(DepthImageToPointCloud(depth_camera_info))
-        builder.Connect(cam0.GetOutputPort("depth_image_32f"), im_to_pc.depth_image_input_port())
-        # builder.Connect(cam0.GetOutputPort("color_image"), im_to_pc.color_image_input_port())
+        im_to_pc_0 = builder.AddSystem(DepthImageToPointCloud(depth_camera_info, fields=pc_fields))
+        im_to_pc_1 = builder.AddSystem(DepthImageToPointCloud(depth_camera_info, fields=pc_fields))
+        builder.Connect(cam0.GetOutputPort("depth_image_32f"), im_to_pc_0.depth_image_input_port())
+        builder.Connect(cam0.body_pose_in_world_output_port(), im_to_pc_0.camera_pose_input_port())
+        builder.Connect(cam1.GetOutputPort("depth_image_32f"), im_to_pc_1.depth_image_input_port())
+        builder.Connect(cam1.body_pose_in_world_output_port(), im_to_pc_1.camera_pose_input_port())
 
-        camera_pos_src = builder.AddSystem(ConstantValueSource(AbstractValue.Make(camera_pos)))
-        builder.Connect(camera_pos_src.get_output_port(), im_to_pc.camera_pose_input_port())
+        if (pc_fields & BaseField.kRGBs):
+            builder.Connect(cam0.GetOutputPort("color_image"), im_to_pc_0.color_image_input_port())
+            builder.Connect(cam1.GetOutputPort("color_image"), im_to_pc_1.color_image_input_port())
 
         abb_controller = builder.AddSystem(abb_inverse_dynamics_controller())
         builder.Connect(abb_controller.get_output_port(), plant.get_actuation_input_port(robot))
@@ -144,10 +165,13 @@ class RobotDiagram(Diagram):
         
         builder.ExportOutput(cam0.GetOutputPort("color_image"), "camera0_color_image")
         builder.ExportOutput(cam0.GetOutputPort("depth_image_32f"), "camera0_depth_image")
-        builder.ExportOutput(im_to_pc.get_output_port(), "point_cloud")
+        builder.ExportOutput(im_to_pc_0.get_output_port(), "point_cloud")
+
         builder.ExportOutput(cam1.GetOutputPort("color_image"), "camera1_color_image")
         builder.ExportOutput(cam1.GetOutputPort("depth_image_32f"), "camera1_depth_image")
-
         
+        builder.ExportOutput(im_to_pc_0.get_output_port(), "point_cloud_0")
+        builder.ExportOutput(im_to_pc_1.get_output_port(), "point_cloud_1")
+
         AddDefaultVisualization(builder, meshcat=meshcat)
         diagram = builder.BuildInto(self)
