@@ -6,11 +6,13 @@ from pydrake.geometry import (
     GeometrySet, 
     Meshcat, 
     SceneGraph, 
-    MakeRenderEngineGl, 
+    MakeRenderEngineGl,
+    MakeRenderEngineVtk,
     RenderCameraCore, 
     ColorRenderCamera, 
     DepthRenderCamera, 
-    RenderEngineGlParams, 
+    RenderEngineGlParams,
+    RenderEngineVtkParams,
     ClippingRange, 
     DepthRange)
 from pydrake.visualization import AddDefaultVisualization
@@ -101,7 +103,15 @@ class RobotDiagram(Diagram):
         plant.WeldFrames(plant.GetFrameByName("gripper_frame"), plant.GetFrameByName("base_link"))
         plant.Finalize()
 
-        engine = MakeRenderEngineGl(RenderEngineGlParams())
+        try:
+            engine = MakeRenderEngineGl(RenderEngineGlParams())
+        except:
+            print("Switching to VTK render engine")
+            try:
+                enine = MakeRenderEngineVtk(RenderEngineVtkParams())
+            except:
+                print("No render engine works")
+
         scene_graph.AddRenderer("default_renderer", engine)
 
         camera_pix_w = 1280
