@@ -1,2 +1,1 @@
-To setup the environment on Ubuntu simply run the script install/install_dependencies.bash
-for other operating systems you can modify the install script to remove the system packages and install them manually before running the script.
+
