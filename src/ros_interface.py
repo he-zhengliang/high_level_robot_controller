@@ -14,8 +14,6 @@ from pydrake.multibody.plant import MultibodyPlant, AddMultibodyPlantSceneGraph,
 from pydrake.multibody.parsing import Parser
 from pydrake.visualization import AddDefaultVisualization
 
-from GripperMotionController import GripperMotionController
-
 from trajectory_msgs.msg import JointTrajectory
 from control_msgs.msg import DynamicJointState
 
