@@ -12,7 +12,8 @@ from pydrake.geometry import (
     DepthRenderCamera, 
     RenderEngineGlParams, 
     ClippingRange, 
-    DepthRange)
+    DepthRange
+)
 from pydrake.visualization import AddDefaultVisualization
 from pydrake.math import RotationMatrix, RigidTransform
 from pydrake.multibody.parsing import Parser

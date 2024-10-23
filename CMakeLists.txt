@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(RobotSimulationPy)
+project(high_level_robot_controller)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -10,6 +10,16 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+
+install(
+  PROGRAMS src/ros_interface.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(
+  DIRECTORY src/svh
+  DESTINATION share/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
