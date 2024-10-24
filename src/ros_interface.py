@@ -1,83 +1,66 @@
 #!/usr/bin/env python3
-import sys, os
-import numpy as np
-
-import drake_ros.core
-from drake_ros.core import RosInterfaceSystem
-from drake_ros.core import RosPublisherSystem
-from drake_ros.core import RosSubscriberSystem
 
 from pydrake.systems.analysis import Simulator
-from pydrake.systems.framework import DiagramBuilder, LeafSystem, Context
-from pydrake.geometry import StartMeshcat, GeometrySet, CollisionFilterDeclaration
-from pydrake.multibody.plant import MultibodyPlant, AddMultibodyPlantSceneGraph, DiscreteContactApproximation
-from pydrake.multibody.parsing import Parser
-from pydrake.visualization import AddDefaultVisualization
+from pydrake.systems.framework import DiagramBuilder, LeafSystem, Diagram, Context, State
+from pydrake.trajectories import PiecewisePolynomial
+from pydrake.systems.primitives import ConstantVectorSource, VectorLogSink, TrajectorySource
+from RosInterface import RosInterface
 
-from trajectory_msgs.msg import JointTrajectory
-from control_msgs.msg import DynamicJointState
+import numpy as np
+from matplotlib import pyplot as plt
+from random import random
 
-from rclpy.qos import QoSProfile
+DISPLAY=True
 
+class BasicController(LeafSystem):
+    def __init__(self, source:TrajectorySource):
+        super().__init__()
+        self.trajectory = PiecewisePolynomial()
+        self.source:TrajectorySource = source
+        self.DeclareVectorInputPort("current_state", 18)
+        self.DeclarePeriodicPublishEvent(0.8, 0.0, self.update_traj)
+        #self.DeclareInitializationPublishEvent(self.update_traj)
+
+    def update_traj(self, context:Context):
+        current_state = self.get_input_port(0).Eval(context)
+        time = context.get_time()
+        breaks = [time, time+1.0]
+
+        samples = [[0.0, 0.0]]*9
+        print(current_state[6])
+        samples[6] = [current_state[6], random()]
+        traj = PiecewisePolynomial.CubicWithContinuousSecondDerivatives(breaks, samples, current_state[9:], np.random.random((9,)))
+        self.source.UpdateTrajectory(traj)
+        
 def main():
-    meshcat = StartMeshcat()
     builder = DiagramBuilder()
-    plant:MultibodyPlant
-    plant, scene_graph = AddMultibodyPlantSceneGraph(builder, 0.001)
 
-
-    plant.set_discrete_contact_approximation(DiscreteContactApproximation.kSap)
-    parser = Parser(plant)
-    print(os.getcwd())
-    parser.AddModels("install/high_level_robot_controller/share/high_level_robot_controller/svh/Schunk_SVH.urdf")
-    plant.WeldFrames(plant.world_frame(), plant.GetFrameByName("base_link"))
-
-    svh_collision_set = GeometrySet()
-    for bi in plant.GetBodyIndices(plant.GetModelInstanceByName("svh")):
-        svh_collision_set.Add(plant.GetCollisionGeometriesForBody(plant.get_body(bi)))
-    scene_graph.collision_filter_manager().Apply(CollisionFilterDeclaration().ExcludeWithin(svh_collision_set))
-
-    plant.Finalize()
-
-    drake_ros.core.init()
-    interface = builder.AddSystem(RosInterfaceSystem("drake_interface"))
-
-    qos = QoSProfile(depth=10)
-
-    state_subscriber = builder.AddSystem(
-        RosSubscriberSystem.Make(
-            DynamicJointState, 
-            "/dynamic_joint_states", 
-            qos, 
-            interface.get_ros_interface()
-        )   
-    )
-
-    print("Number of actuators %i", plant.get_net_actuation_output_port(plant.GetModelInstanceByName("svh")).size())
-
-    AddDefaultVisualization(builder, meshcat)
+    ros_interface = builder.AddSystem(RosInterface())
+    state_in = builder.AddSystem(TrajectorySource(PiecewisePolynomial.FirstOrderHold([0, 0.001], [[0.0, 0.0]]*9), 1, True))#builder.AddSystem(ConstantVectorSource(np.zeros(18)))
+    controller = builder.AddSystem(BasicController(state_in))
+    state_out = builder.AddSystem(VectorLogSink(18))
+    state_in_logger:VectorLogSink = builder.AddSystem(VectorLogSink(18))
+    effort_out = builder.AddSystem(VectorLogSink(9))
+    
+    builder.Connect(state_in.get_output_port(0), ros_interface.get_input_port(0))
+    builder.Connect(ros_interface.get_output_port(0), state_out.get_input_port(0))
+    builder.Connect(ros_interface.get_output_port(1), effort_out.get_input_port(0))
+    builder.Connect(state_in.get_output_port(), state_in_logger.get_input_port())
+    builder.Connect(ros_interface.get_output_port(0), controller.get_input_port())
 
     diagram = builder.Build()
     simulator = Simulator(diagram)
     simulator_context = simulator.get_mutable_context()
-    ds = np.zeros(18)
-    ds[2] = 1.0
-    plant.get_desired_state_input_port(plant.GetModelInstanceByName("svh")).FixValue(plant.GetMyContextFromRoot(simulator_context), ds)
     simulator.set_target_realtime_rate(1.0)
 
-    step = 1.0
-    while simulator_context.get_time() < 10000.0:
-        next_time = min(
-            simulator_context.get_time() + step, 10000.0,
-        )
+    step = 0.1
+    while simulator_context.get_time() < 5:
+        simulator.AdvanceTo(simulator_context.get_time() + step)
 
-        print("Time: %f", simulator_context.get_time())
-        print(state_subscriber.get_output_port(0).Eval(state_subscriber.GetMyContextFromRoot(simulator_context)))
-        print(plant.GetPositionNames(plant.GetModelInstanceByName("svh")))
-        print(plant.GetPositions(plant.GetMyContextFromRoot(simulator_context), plant.GetModelInstanceByName("svh")))
-        print("\n")
-        
-        simulator.AdvanceTo(next_time)
+    log = state_in_logger.GetLog(state_in_logger.GetMyContextFromRoot(simulator_context))
+    plt.plot(log.sample_times(), log.data()[6, :])
+
+    plt.savefig("plot.png")
 
 if __name__ == '__main__':
     main()
