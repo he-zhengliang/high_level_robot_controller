@@ -111,6 +111,7 @@ class RobotDiagram(Diagram):
                 enine = MakeRenderEngineVtk(RenderEngineVtkParams())
             except:
                 print("No render engine works")
+                quit()
 
         scene_graph.AddRenderer("default_renderer", engine)
 
