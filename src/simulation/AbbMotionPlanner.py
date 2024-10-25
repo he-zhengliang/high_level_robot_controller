@@ -33,6 +33,7 @@ class AbbMotionPlanner(LeafSystem):
         self.DeclareVectorInputPort("irb1200_estimated_state", BasicVector(np.zeros(self.num_plant_states)))
         self.DeclareVectorOutputPort("irb1200_desired_state", BasicVector(np.zeros(self.num_plant_states)), self.CalcMotionOutput)
         self.DeclareInitializationUnrestrictedUpdateEvent(self.UpdateTrajectory)
+        self.DeclarePeriodicUnrestrictedUpdateEvent(5.0, 0.0, self.UpdateTrajectory)
         
     def CalcMotionOutput(self, context:Context, output:BasicVector):
         t = context.get_time()

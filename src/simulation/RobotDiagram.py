@@ -19,7 +19,22 @@ from pydrake.math import RotationMatrix, RigidTransform
 from pydrake.multibody.parsing import Parser
 from pydrake.systems.controllers import InverseDynamicsController
 from pydrake.systems.framework import Diagram, DiagramBuilder
+from pydrake.systems.primitives import Multiplexer, Demultiplexer
 from pydrake.perception import DepthImageToPointCloud, Fields, BaseField
+
+"""
+Thumb_Opposition"
+Thumb_Flexion"
+Index_Finger_Proximal"
+Index_Finger_Distal"
+Middle_Finger_Proximal"
+Middle_Finger_Distal"
+Finger_Spread"
+Pinky"
+Ring_Finger'
+
+"""
+
 
 def get_svh_geometry_filter(plant:MultibodyPlant) -> CollisionFilterDeclaration:
     svh_collision_set = GeometrySet()
@@ -81,6 +96,7 @@ class RobotDiagram(Diagram):
 
         self.camera_pos_ = None
 
+        plant:MultibodyPlant
         plant, scene_graph = AddMultibodyPlantSceneGraph(builder, sim_time_step)
 
         plant.set_discrete_contact_approximation(DiscreteContactApproximation.kSap)
@@ -161,7 +177,19 @@ class RobotDiagram(Diagram):
         builder.ExportInput(plant.get_desired_state_input_port(svh), "svh_desired_state")
         builder.ExportInput(plant.get_actuation_input_port(svh), "svh_feed_forward_torque")
         builder.ExportOutput(plant.get_state_output_port(robot), "irb1200_state")
-        builder.ExportOutput(plant.get_state_output_port(svh), "svh_state")
+        names_raw = plant.GetStateNames(svh)
+        names = []
+        for name in names_raw:
+            if name[:10] == 'left_hand_' and name[10].isupper():
+                names.append(name)
+        print(names)
+        demux = builder.AddSystem(Demultiplexer(len(names_raw), 1))
+        mux = builder.AddSystem(Multiplexer(len(names)))
+        builder.Connect(plant.get_state_output_port(svh), demux.get_input_port())
+
+        for i, name in zip(range(len(names)), names):
+            builder.Connect(demux.get_output_port(names_raw.index(name)), mux.get_input_port(i))
+        builder.ExportOutput(mux.get_output_port(), "svh_state")
         builder.ExportOutput(plant.get_net_actuation_output_port(svh), "svh_net_actuation")
         
         builder.ExportOutput(cam0.GetOutputPort("color_image"), "camera0_color_image")
