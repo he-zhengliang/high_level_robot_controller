@@ -10,8 +10,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from random import random
 
-DISPLAY=True
-
 class BasicController(LeafSystem):
     def __init__(self, source:TrajectorySource):
         super().__init__()
@@ -27,9 +25,8 @@ class BasicController(LeafSystem):
         breaks = [time, time+1.0]
 
         samples = [[0.0, 0.0]]*9
-        print(current_state[6])
-        samples[6] = [current_state[6], random()]
-        traj = PiecewisePolynomial.CubicWithContinuousSecondDerivatives(breaks, samples, current_state[9:], np.random.random((9,)))
+        samples[6] = [current_state[6], 0.3+0.2*random()]
+        traj = PiecewisePolynomial.FirstOrderHold(breaks, samples)
         self.source.UpdateTrajectory(traj)
         
 def main():
@@ -38,9 +35,10 @@ def main():
     ros_interface = builder.AddSystem(RosInterface())
     state_in = builder.AddSystem(TrajectorySource(PiecewisePolynomial.FirstOrderHold([0, 0.001], [[0.0, 0.0]]*9), 1, True))#builder.AddSystem(ConstantVectorSource(np.zeros(18)))
     controller = builder.AddSystem(BasicController(state_in))
-    state_out = builder.AddSystem(VectorLogSink(18))
+
+    state_out:VectorLogSink = builder.AddSystem(VectorLogSink(18))
     state_in_logger:VectorLogSink = builder.AddSystem(VectorLogSink(18))
-    effort_out = builder.AddSystem(VectorLogSink(9))
+    effort_out:VectorLogSink = builder.AddSystem(VectorLogSink(9))
     
     builder.Connect(state_in.get_output_port(0), ros_interface.get_input_port(0))
     builder.Connect(ros_interface.get_output_port(0), state_out.get_input_port(0))
@@ -58,8 +56,8 @@ def main():
         simulator.AdvanceTo(simulator_context.get_time() + step)
 
     log = state_in_logger.GetLog(state_in_logger.GetMyContextFromRoot(simulator_context))
-    plt.plot(log.sample_times(), log.data()[6, :])
-
+    for i in range(log.data().shape[0]):
+        plt.plot(log.sample_times(), log.data()[i, :])
     plt.savefig("plot.png")
 
 if __name__ == '__main__':

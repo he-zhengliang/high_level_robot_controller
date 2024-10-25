@@ -71,8 +71,10 @@ class SvhJointTrajectoryBuilder(LeafSystem):
         traj = JointTrajectory()
         traj.joint_names = self.joint_names
         traj_pt = JointTrajectoryPoint()
-        secs = floor(context.get_time())
-        nanos = floor(1000000000 * (context.get_time() - secs))
+        #TODO Update this to send coarser points to the svh controller
+        time = context.get_time()+0.1
+        secs = floor(time)
+        nanos = floor(1000000000 * (time - secs))
         traj_pt.time_from_start = Duration(sec=secs, nanosec=nanos)
         traj_pt.positions = list(traj_vector[:self.num_positions])
         traj_pt.velocities = list(traj_vector[self.num_positions:])

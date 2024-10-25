@@ -322,7 +322,7 @@
                 <visual name="ball_visual">
                     <geometry>
                         <ellipsoid>
-                            <radii>0.07 0.07 0.06</radii>
+                            <radii>0.04 0.04 0.04</radii>
                         </ellipsoid>
                     </geometry>
                     <material>
@@ -334,7 +334,7 @@
                 <collision name="ball_collision">
                     <geometry>
                         <ellipsoid>
-                            <radii>0.07 0.07 0.06</radii>
+                            <radii>0.04 0.04 0.04</radii>
                         </ellipsoid>
                     </geometry>
                     <drake:proximity_properties>
