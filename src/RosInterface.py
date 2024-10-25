@@ -71,9 +71,9 @@ class SvhJointTrajectoryBuilder(LeafSystem):
         traj = JointTrajectory()
         traj.joint_names = self.joint_names
         traj_pt = JointTrajectoryPoint()
-        secs = floor(context.get_time())
-        nanos = floor(1000000000 * (context.get_time() - secs))
-        traj_pt.time_from_start = Duration(sec=secs, nanosec=nanos)
+        #secs = floor(context.get_time())
+        #nanos = floor(1000000000 * (context.get_time() - secs))
+        traj_pt.time_from_start = Duration(nanosec=1000000)
         traj_pt.positions = list(traj_vector[:self.num_positions])
         traj_pt.velocities = list(traj_vector[self.num_positions:])
         traj.points.append(traj_pt)
