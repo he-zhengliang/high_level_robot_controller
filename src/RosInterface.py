@@ -1,3 +1,9 @@
+"""@package high_level_robot_controller
+
+This module holds an interface between ROS2 and Drake specifically for the SVH.
+TODO add support for the ABB
+"""
+
 from pydrake.systems.framework import DiagramBuilder, LeafSystem, Context, BasicVector, DiscreteValues, Diagram
 from pydrake.common.value import AbstractValue
 from math import floor
@@ -15,6 +21,8 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 
 class SvhDynamicJointStateDecomposer(LeafSystem):
+    """This class reads a ROS DynamicJointState message and parses it into a drake vector
+    """
     def __init__(self):
         super().__init__()
         self.joint_names = [
