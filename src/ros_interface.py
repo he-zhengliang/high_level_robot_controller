@@ -58,10 +58,16 @@ def main():
 
     log = state_in_logger.GetLog(state_in_logger.GetMyContextFromRoot(simulator_context))
 
+    plt.figure(1)
     for i in range(log.data().shape[0]):
         plt.plot(log.sample_times(), log.data()[i, :])
     plt.savefig("plot.png")
 
+    plt.figure(2)
+    sensor_log = state_out.GetLog(state_out.GetMyContextFromRoot(simulator_context))
+    for i in range(sensor_log.data().shape[0]):
+        plt.plot(sensor_log.sample_times(), sensor_log.data()[i,:])
+    plt.savefig("sensor_plot.png")
 if __name__ == '__main__':
     main()
 
