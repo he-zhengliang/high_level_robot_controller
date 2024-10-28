@@ -21,7 +21,7 @@ from pydrake.perception import BaseField
 
 meshcat = StartMeshcat()
 
-def get_diagram(show_point_clouds:False) -> tuple[Diagram, Context]:
+def get_diagram(show_point_clouds:bool=False) -> tuple[Diagram, Context]:
     """Builds and returns a diagram that contains everything required to simulate the robotic system
 
     !!Needs updating as the controls keep being updated or it may not accurately reflect the real control system

@@ -26,10 +26,6 @@ class SvhDynamicJointStateDecomposer(LeafSystem):
     This class is only defined to work with the Schunk SVH.
     """
 
-    """Constructor
-
-    @PARAMETER: period
-    """
     def __init__(self, subscriber_sampling_period:float):
         super().__init__()
         self.joint_names = [
@@ -52,9 +48,8 @@ class SvhDynamicJointStateDecomposer(LeafSystem):
         self.DeclarePeriodicDiscreteUpdateEvent(subscriber_sampling_period, 0.0, self.calc_state_output)
         self.DeclareInitializationDiscreteUpdateEvent(self.calc_state_output)
 
-    """Callback function that parses a ROS2 input message and fills in an output vector
-    """
     def calc_state_output(self, context:Context, vector:DiscreteValues):
+        #Callback function that parses a ROS2 input message and fills in an output vector
         input_message:DynamicJointState = self.get_input_port(0).Eval(context)
         for joint,interface_values in zip(input_message.joint_names, input_message.interface_values):
             joint_idx = self.joint_names.index(joint)
@@ -68,8 +63,6 @@ class SvhJointTrajectoryBuilder(LeafSystem):
     This class is only defined for the Schunk SVH
     """
 
-    """Constructor. Sets up the inputs and outputs
-    """
     def __init__(self):
         super().__init__()
         self.num_positions = 9
@@ -87,9 +80,9 @@ class SvhJointTrajectoryBuilder(LeafSystem):
             f'Left_Hand_Ring_Finger',
         ]
 
-    """Callback function that builds a ROS2 JointTrajectory message.
-    """
     def calc_output(self, context:Context, value:AbstractValue):
+        #Callback function that builds a ROS2 JointTrajectory message.
+
         traj_vector:BasicVector = self.get_input_port(0).Eval(context)
         traj = JointTrajectory()
         traj.joint_names = self.joint_names
@@ -101,12 +94,10 @@ class SvhJointTrajectoryBuilder(LeafSystem):
         traj.points.append(traj_pt)
         value.SetFrom(AbstractValue.Make(traj))
 
-"""Wrapper class that allows for quick interfacing with the Schunk SVH
-"""
 class RosInterface(Diagram):
-
-    """Constructor
+    """Wrapper class that allows for quick interfacing with the Schunk SVH
     """
+
     def __init__(self, publishing_period:float, subscriber_sampling_period:float=0.02):
         super().__init__()
         builder = DiagramBuilder()

@@ -19,7 +19,7 @@ from pydrake.math import RotationMatrix, RigidTransform
 from pydrake.multibody.parsing import Parser
 from pydrake.systems.controllers import InverseDynamicsController
 from pydrake.systems.framework import Diagram, DiagramBuilder
-from pydrake.systems.primitives import Multiplexer, Demultiplexer
+from pydrake.systems.primitives import Multiplexer, Demultiplexer, ZeroOrderHold
 from pydrake.perception import DepthImageToPointCloud, Fields, BaseField
 
 def get_svh_geometry_filter(plant:MultibodyPlant) -> CollisionFilterDeclaration:
