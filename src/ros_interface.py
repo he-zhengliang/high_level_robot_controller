@@ -53,7 +53,7 @@ def main():
     simulator.set_target_realtime_rate(1.0)
 
     step = 0.1
-    while simulator_context.get_time() < 3:
+    while simulator_context.get_time() < 10:
         simulator.AdvanceTo(simulator_context.get_time() + step)
 
     log = state_in_logger.GetLog(state_in_logger.GetMyContextFromRoot(simulator_context))

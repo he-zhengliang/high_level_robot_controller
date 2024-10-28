@@ -42,7 +42,7 @@ class SvhDynamicJointStateDecomposer(LeafSystem):
         self.effort_idx = self.DeclareDiscreteState(9)
         self.DeclareStateOutputPort("svh_state", self.state_idx)
         self.DeclareStateOutputPort("svh_effort", self.effort_idx)
-        self.DeclarePeriodicDiscreteUpdateEvent(0.1, 0.0, self.calc_state_output)
+        self.DeclarePeriodicDiscreteUpdateEvent(0.02, 0.0, self.calc_state_output)
         self.DeclareInitializationDiscreteUpdateEvent(self.calc_state_output)
 
     def calc_state_output(self, context:Context, vector:DiscreteValues):
@@ -113,7 +113,7 @@ class RosInterface(Diagram):
                 qos,
                 interface.get_ros_interface(),
                 {TriggerType.kPeriodic},
-                publish_period=0.1
+                publish_period=0.02
             )
         )
 
