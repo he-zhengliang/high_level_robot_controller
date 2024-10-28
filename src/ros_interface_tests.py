@@ -9,7 +9,6 @@ from RosInterface import RosInterface
 import numpy as np
 from matplotlib import pyplot as plt
 from random import random
-from math import isnan
 
 class BasicController(LeafSystem):
     def __init__(self, source:TrajectorySource):
@@ -18,7 +17,7 @@ class BasicController(LeafSystem):
         self.source:TrajectorySource = source
         self.DeclareVectorInputPort("current_state", 18)
         self.DeclarePeriodicPublishEvent(2.5, 0.0, self.update_traj)
-        #self.DeclareInitializationPublishEvent(self.update_traj)
+        self.DeclareInitializationPublishEvent(self.update_traj)
 
     def update_traj(self, context:Context):
         current_state = self.get_input_port(0).Eval(context)

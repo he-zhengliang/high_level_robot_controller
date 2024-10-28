@@ -21,9 +21,16 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 
 class SvhDynamicJointStateDecomposer(LeafSystem):
-    """This class reads a ROS DynamicJointState message and parses it into a drake vector
+    """Drake System that takes a ROS DynamicJointState message and parses it into a BasicVector.
+
+    This class is only defined to work with the Schunk SVH.
     """
-    def __init__(self):
+
+    """Constructor
+
+    @PARAMETER: period
+    """
+    def __init__(self, subscriber_sampling_period:float):
         super().__init__()
         self.joint_names = [
             'Left_Hand_Thumb_Opposition',
@@ -42,9 +49,11 @@ class SvhDynamicJointStateDecomposer(LeafSystem):
         self.effort_idx = self.DeclareDiscreteState(9)
         self.DeclareStateOutputPort("svh_state", self.state_idx)
         self.DeclareStateOutputPort("svh_effort", self.effort_idx)
-        self.DeclarePeriodicDiscreteUpdateEvent(0.02, 0.0, self.calc_state_output)
+        self.DeclarePeriodicDiscreteUpdateEvent(subscriber_sampling_period, 0.0, self.calc_state_output)
         self.DeclareInitializationDiscreteUpdateEvent(self.calc_state_output)
 
+    """Callback function that parses a ROS2 input message and fills in an output vector
+    """
     def calc_state_output(self, context:Context, vector:DiscreteValues):
         input_message:DynamicJointState = self.get_input_port(0).Eval(context)
         for joint,interface_values in zip(input_message.joint_names, input_message.interface_values):
@@ -54,6 +63,13 @@ class SvhDynamicJointStateDecomposer(LeafSystem):
             vector.get_mutable_vector(1).SetAtIndex(joint_idx, interface_values.values[2])
 
 class SvhJointTrajectoryBuilder(LeafSystem):
+    """Drake System that takes in a BasicVector and outputs a JointTrajectory ROS2 message for controlling the SVH.
+
+    This class is only defined for the Schunk SVH
+    """
+
+    """Constructor. Sets up the inputs and outputs
+    """
     def __init__(self):
         super().__init__()
         self.num_positions = 9
@@ -71,9 +87,8 @@ class SvhJointTrajectoryBuilder(LeafSystem):
             f'Left_Hand_Ring_Finger',
         ]
 
-    # TODO: this might be able to updated to take in a trajectory directly from Drake rather than a 
-    # stream of trajectory points which should reduce latency between commanded positions and the 
-    # corresponding action
+    """Callback function that builds a ROS2 JointTrajectory message.
+    """
     def calc_output(self, context:Context, value:AbstractValue):
         traj_vector:BasicVector = self.get_input_port(0).Eval(context)
         traj = JointTrajectory()
@@ -86,14 +101,18 @@ class SvhJointTrajectoryBuilder(LeafSystem):
         traj.points.append(traj_pt)
         value.SetFrom(AbstractValue.Make(traj))
 
+"""Wrapper class that allows for quick interfacing with the Schunk SVH
+"""
 class RosInterface(Diagram):
-    def __init__(self):
+
+    """Constructor
+    """
+    def __init__(self, publishing_period:float, subscriber_sampling_period:float=0.02):
         super().__init__()
         builder = DiagramBuilder()
 
         drake_ros.core.init()
         interface = builder.AddSystem(RosInterfaceSystem("drake_interface"))
-        ClockSystem.AddToBuilder(builder, interface.get_ros_interface())
 
         qos = QoSProfile(depth=10)
 
@@ -113,7 +132,7 @@ class RosInterface(Diagram):
                 qos,
                 interface.get_ros_interface(),
                 {TriggerType.kPeriodic},
-                publish_period=0.02
+                publish_period=publishing_period
             )
         )
 
@@ -121,7 +140,7 @@ class RosInterface(Diagram):
         builder.Connect(traj_msg_builder.get_output_port(), state_publisher.get_input_port(0))
         builder.ExportInput(traj_msg_builder.get_input_port(0))
 
-        state_sensor = builder.AddSystem(SvhDynamicJointStateDecomposer())
+        state_sensor = builder.AddSystem(SvhDynamicJointStateDecomposer(subscriber_sampling_period))
         builder.Connect(state_subscriber.get_output_port(0), state_sensor.get_input_port(0))
         builder.ExportOutput(state_sensor.GetOutputPort("svh_state"))
         builder.ExportOutput(state_sensor.GetOutputPort("svh_effort"))

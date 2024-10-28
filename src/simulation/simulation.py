@@ -1,3 +1,6 @@
+"""Simulation implementation. Uses Drake as the simulator and visualizer
+"""
+
 import numpy as np
 import sys
 sys.path.append('/home/alexm/ws/src/high_level_robot_controller/src')
@@ -18,7 +21,12 @@ from pydrake.perception import BaseField
 
 meshcat = StartMeshcat()
 
-def get_diagram(X_WG:RigidTransform) -> tuple[Diagram, Context]:
+def get_diagram(show_point_clouds:False) -> tuple[Diagram, Context]:
+    """Builds and returns a diagram that contains everything required to simulate the robotic system
+
+    !!Needs updating as the controls keep being updated or it may not accurately reflect the real control system
+    """
+
     builder = DiagramBuilder()
     system = builder.AddNamedSystem("plant_subsystem", RobotDiagram(0.001, meshcat=meshcat, models_to_add=["world/world.sdf"], pc_fields=BaseField.kXYZs))
 
@@ -40,17 +48,18 @@ def get_diagram(X_WG:RigidTransform) -> tuple[Diagram, Context]:
 
     builder.Connect(svh_state, svh_sink.get_input_port())
     builder.Connect(irb_state, irb_sink.get_input_port())
-    #builder.ExportOutput(system.GetOutputPort("camera0_color_image"), "camera0_color_image")
-    #builder.ExportOutput(system.GetOutputPort("camera0_depth_image"), "camera0_depth_image")
+    if show_point_clouds:
+        builder.ExportOutput(system.GetOutputPort("camera0_color_image"), "camera0_color_image")
+        builder.ExportOutput(system.GetOutputPort("camera0_depth_image"), "camera0_depth_image")
 
-    #builder.ExportOutput(system.GetOutputPort("camera1_color_image"), "camera1_color_image")
-    #builder.ExportOutput(system.GetOutputPort("camera1_depth_image"), "camera1_depth_image")
-    
-    #concat = builder.AddSystem(ProcessPointCloud())
-    #builder.Connect(system.GetOutputPort("point_cloud_0"), concat.get_input_port(0))
-    #builder.Connect(system.GetOutputPort("point_cloud_1"), concat.get_input_port(1))
-    #pc_vis = builder.AddSystem(MeshcatPointCloudVisualizer(meshcat, "/drake", 1.0))
-    #builder.Connect(concat.get_output_port(), pc_vis.cloud_input_port())
+        builder.ExportOutput(system.GetOutputPort("camera1_color_image"), "camera1_color_image")
+        builder.ExportOutput(system.GetOutputPort("camera1_depth_image"), "camera1_depth_image")
+        
+        concat = builder.AddSystem(ProcessPointCloud())
+        builder.Connect(system.GetOutputPort("point_cloud_0"), concat.get_input_port(0))
+        builder.Connect(system.GetOutputPort("point_cloud_1"), concat.get_input_port(1))
+        pc_vis = builder.AddSystem(MeshcatPointCloudVisualizer(meshcat, "/drake", 1.0))
+        builder.Connect(concat.get_output_port(), pc_vis.cloud_input_port())
 
     diagram:Diagram = builder.Build()
     context = diagram.CreateDefaultContext()
@@ -59,7 +68,7 @@ def get_diagram(X_WG:RigidTransform) -> tuple[Diagram, Context]:
 
 
 def show_mock_triad(name:str, pose:RigidTransform):
-    # Create a triad like object that shows the goal orientation
+    # Create a triad like object that shows the location and orientation of the input RigidTransform
     meshcat.SetObject(name+"_x", Box(0.02, 0.02, 0.06), rgba=Rgba(0.9, 0.1, 0.1, 1))
     meshcat.SetTransform(name+"_x", pose @ RigidTransform(RotationMatrix().MakeYRotation(-np.pi/2), [0.03, 0, 0]))
 
@@ -69,12 +78,11 @@ def show_mock_triad(name:str, pose:RigidTransform):
     meshcat.SetObject(name+"_z", Box(0.02, 0.02, 0.06), rgba=Rgba(0.1, 0.1, 0.9, 1))
     meshcat.SetTransform(name+"_z", pose @ RigidTransform(RotationMatrix(), [0, 0, 0.03]))
 
-# end position of the abb motion planner
+# end position of the abb motion planner number 1
 X_WG = RigidTransform(RotationMatrix().MakeXRotation(np.pi) @ RotationMatrix().MakeYRotation(np.pi/2), [0.6, 0.05, 0.05])
 
-# Simulation
 target_ee_port:InputPort
-diagram, context, target_ee_port, svh_desired_state = get_diagram(X_WG)
+diagram, context, target_ee_port, svh_desired_state = get_diagram()
 svh_desired_state:InputPort
 target_ee_port.FixValue(target_ee_port.get_system().GetMyContextFromRoot(context), AbstractValue.Make(X_WG))
 svh_desired_state.FixValue(svh_desired_state.get_system().GetMyContextFromRoot(context), np.zeros(svh_desired_state.size()))

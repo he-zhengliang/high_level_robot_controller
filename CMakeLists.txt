@@ -7,10 +7,16 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(drake REQUIRED)
 
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+
+add_executable(high_level_controller src/main.cpp src/RosInterface.cpp include/RosInterface.hpp)
+target_link_libraries(high_level_controller drake::drake)
+target_include_directories(high_level_controller include)
 
 install(
   PROGRAMS src/ros_interface.py

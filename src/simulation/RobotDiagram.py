@@ -22,27 +22,16 @@ from pydrake.systems.framework import Diagram, DiagramBuilder
 from pydrake.systems.primitives import Multiplexer, Demultiplexer
 from pydrake.perception import DepthImageToPointCloud, Fields, BaseField
 
-"""
-Thumb_Opposition"
-Thumb_Flexion"
-Index_Finger_Proximal"
-Index_Finger_Distal"
-Middle_Finger_Proximal"
-Middle_Finger_Distal"
-Finger_Spread"
-Pinky"
-Ring_Finger'
-
-"""
-
-
 def get_svh_geometry_filter(plant:MultibodyPlant) -> CollisionFilterDeclaration:
+    #Creates a geometry filter to ignore collisions between SVH fingers
     svh_collision_set = GeometrySet()
     for bi in plant.GetBodyIndices(plant.GetModelInstanceByName("svh")):
         svh_collision_set.Add(plant.GetCollisionGeometriesForBody(plant.get_body(bi)))
     return CollisionFilterDeclaration().ExcludeWithin(svh_collision_set)
 
 def abb_inverse_dynamics_controller() -> InverseDynamicsController:
+    #Creates a controller for the ABB IRB1200 in simulation that models the ABB control box
+
     plant = MultibodyPlant(0.001)
     parser = Parser(plant)
     parser.AddModels("abb/ABB_irb1200.urdf")
@@ -67,6 +56,7 @@ def abb_inverse_dynamics_controller() -> InverseDynamicsController:
     return InverseDynamicsController(plant, Kp, Ki, Kd, False, context)
 
 def get_camera_pose(camera_position:np.ndarray, focus_point:np.ndarray=np.zeros(3)):
+    # get the pose required for a camera given a position for the camera and the center of the camera image
     focus_translation = camera_position - focus_point
     base_length = np.sqrt(focus_translation[0]**2 + focus_translation[1]**2)
     if base_length < 0.0001:
@@ -87,6 +77,10 @@ def get_camera_pose(camera_position:np.ndarray, focus_point:np.ndarray=np.zeros(
     camera_rot = RotationMatrix.MakeZRotation(np.pi/2+z_rotation) @ RotationMatrix.MakeXRotation(-np.pi/2 - x_rot_angle)
     return RigidTransform(camera_rot, camera_position)
 
+"""Diagram that implements all the physical parts of the robotic system that need to be simulated.
+
+Includes: ABB IRB1200, Schunk SVH, 2 cameras (need to be set up to match physical cameras)
+"""
 class RobotDiagram(Diagram):
     def __init__(self, sim_time_step:float, meshcat:Meshcat=None, hydroelastic_contact:bool=False, models_to_add:list[str]=[], pc_fields=BaseField.kXYZs):
         super().__init__()
