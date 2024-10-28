@@ -4,7 +4,7 @@ This module holds an interface between ROS2 and Drake specifically for the SVH.
 TODO add support for the ABB
 """
 
-from pydrake.systems.framework import DiagramBuilder, LeafSystem, Context, BasicVector, DiscreteValues, Diagram
+from pydrake.systems.framework import DiagramBuilder, LeafSystem, Context, BasicVector, DiscreteValues, Diagram, TriggerType
 from pydrake.common.value import AbstractValue
 from math import floor
 
@@ -42,7 +42,7 @@ class SvhDynamicJointStateDecomposer(LeafSystem):
         self.effort_idx = self.DeclareDiscreteState(9)
         self.DeclareStateOutputPort("svh_state", self.state_idx)
         self.DeclareStateOutputPort("svh_effort", self.effort_idx)
-        self.DeclarePeriodicDiscreteUpdateEvent(1/100.0, 0.0, self.calc_state_output)
+        self.DeclarePeriodicDiscreteUpdateEvent(0.1, 0.0, self.calc_state_output)
         self.DeclareInitializationDiscreteUpdateEvent(self.calc_state_output)
 
     def calc_state_output(self, context:Context, vector:DiscreteValues):
@@ -80,7 +80,7 @@ class SvhJointTrajectoryBuilder(LeafSystem):
         traj.joint_names = self.joint_names
         traj_pt = JointTrajectoryPoint()
         #TODO Update this to send coarser points to the svh controller
-        traj_pt.time_from_start = Duration(nanosec=1000000)
+        traj_pt.time_from_start = Duration(sec=0)
         traj_pt.positions = list(traj_vector[:self.num_positions])
         traj_pt.velocities = list(traj_vector[self.num_positions:])
         traj.points.append(traj_pt)
@@ -111,7 +111,9 @@ class RosInterface(Diagram):
                 JointTrajectory,
                 "/left_hand/joint_trajectory",
                 qos,
-                interface.get_ros_interface()
+                interface.get_ros_interface(),
+                {TriggerType.kPeriodic},
+                publish_period=0.1
             )
         )
 
