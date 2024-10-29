@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(high_level_robot_controller)
+project(high_level_robot_controller_py)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -10,17 +10,17 @@ find_package(ament_cmake REQUIRED)
 find_package(drake REQUIRED)
 
 install(
-  PROGRAMS src/ros_interface.py
+  PROGRAMS ros_interface.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
-  PROGRAMS src/RosInterface.py
+  PROGRAMS RosInterface.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
-  DIRECTORY src/svh
+  DIRECTORY svh
   DESTINATION share/${PROJECT_NAME}
 )
 

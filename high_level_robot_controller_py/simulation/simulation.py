@@ -3,7 +3,7 @@
 
 import numpy as np
 import sys
-sys.path.append('/home/alexm/ws/src/high_level_robot_controller')
+sys.path.append('/home/alexm/ws/src/high_level_robot_controller_py')
 from matplotlib import pyplot as plt
 
 from RobotDiagram import RobotDiagram
