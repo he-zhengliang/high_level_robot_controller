@@ -1,1 +1,10 @@
+Note: Only works on operating systems supported by Drake (Ubuntu 22.04, Ubuntu 24.04, macOS Sonoma as of 10/20/2024)
+Ensure that Drake is installed with Python and C++ configuration
 
+1. Create a workspace directory and a src directory inside
+2. Clone this repository into the src directory
+	$git clone https://github.com/xandermaljaars/high_level_robot_controller.git
+3. Clone the other required packages that need to be built. Refer to each Github repository for specific installation instructions
+	$git clone https://github.com/RobotLocomotion/drake-ros.git
+4. Navigate back to the workspace directory and build the project
+	$colcon build
