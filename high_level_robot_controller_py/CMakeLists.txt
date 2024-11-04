@@ -10,7 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(drake REQUIRED)
 
 install(
-  PROGRAMS ros_interface.py
+  PROGRAMS ros_interface_tests.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

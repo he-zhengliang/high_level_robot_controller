@@ -8,15 +8,29 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(drake REQUIRED)
+find_package(trajectory_msgs REQUIRED)
+find_package(control_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(drake_ros REQUIRED)
 
 add_library(drake_ros2_interface src/drake_ros2_interface.cpp)
 target_compile_features(drake_ros2_interface PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 target_include_directories(drake_ros2_interface PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(drake_ros2_interface
+  drake::drake
+  drake_ros::drake_ros_core
+)
+ament_target_dependencies(drake_ros2_interface
+  rclcpp
+  trajectory_msgs
+  control_msgs
+  std_msgs
+)
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
@@ -26,12 +40,33 @@ install(
   DIRECTORY include/
   DESTINATION include
 )
+
 install(
   TARGETS drake_ros2_interface
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
+)
+
+add_executable(drake_ros2_interface_test test/main.cpp)
+target_compile_features(drake_ros2_interface PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_include_directories(drake_ros2_interface_test PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(drake_ros2_interface_test
+  drake::drake
+  drake_ros2_interface
+)
+ament_target_dependencies(drake_ros2_interface_test
+  rclcpp
+)
+
+install(TARGETS
+  drake_ros2_interface_test
+DESTINATION
+  lib/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)

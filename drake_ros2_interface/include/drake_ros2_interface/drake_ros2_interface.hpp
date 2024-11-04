@@ -3,15 +3,16 @@
 
 #include "drake_ros2_interface/visibility_control.h"
 
+#include <drake/systems/framework/diagram.h>
+
 namespace drake_ros2_interface
 {
 
-class DrakeRos2Interface
-{
-public:
-  DrakeRos2Interface();
+using drake::systems::Diagram;
 
-  virtual ~DrakeRos2Interface();
+class DrakeRos2Interface : public Diagram<double> {
+public:
+    DrakeRos2Interface(const float publish_period, const float subscriber_sample_period=0.02);
 };
 
 }  // namespace drake_ros2_interface
