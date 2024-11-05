@@ -20,6 +20,7 @@ add_executable(simulation
   src/simulation.cpp 
   src/robot_diagram.cpp
   src/abb_motion_planner.cpp
+  src/svh_motion_planner.cpp
 )
 target_include_directories(simulation PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -35,25 +36,7 @@ ament_target_dependencies(simulation
   trajectory_msgs
 )
 
-add_executable(simulation_test 
-  src/simulation_test.cpp 
-  src/robot_diagram_test.cpp
-  src/abb_motion_planner.cpp
-)
-target_include_directories(simulation_test PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-target_compile_features(simulation_test PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-target_link_libraries(simulation_test
-  drake::drake
-  drake_ros::drake_ros_core
-)
-
 install(TARGETS simulation
-  DESTINATION lib/${PROJECT_NAME}
-)
-
-install(TARGETS simulation_test
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -12,22 +12,24 @@
 #include <drake/common/trajectories/piecewise_polynomial.h>
 
 namespace simulation {
-    AbbMotionPlanner::AbbMotionPlanner() : 
-        plant_(drake::multibody::MultibodyPlant<double>(0.0))
+    AbbMotionPlanner::AbbMotionPlanner(const double speed) : 
+        plant_(drake::multibody::MultibodyPlant<double>(0.0)), speed_(speed)
     {
         auto parser = drake::multibody::Parser(&plant_);
         parser.AddModels(simulation::package_path::get_package_share_path("simulation") + "abb/ABB_irb1200.urdf");
         this->plant_.WeldFrames(this->plant_.world_frame(), this->plant_.GetFrameByName("base"));
         this->plant_.Finalize();
+        plant_context_ = this->plant_.CreateDefaultContext();
 
-        this->target_location_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(*this->plant_.CreateDefaultContext()));
+        this->target_location_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(*plant_context_));
 
         auto temp = drake::trajectories::PathParameterizedTrajectory<double>(
             drake::trajectories::PiecewisePolynomial<double>(Eigen::Vector<double, 6>::Zero()), 
             drake::trajectories::PiecewisePolynomial<double>(Eigen::Vector<double, 1>::Zero())
         );
+
         this->traj_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(temp));
-        
+
         this->DeclareAbstractInputPort("target_ee_location", *drake::AbstractValue::Make(drake::math::RigidTransformd()));
         
         this->DeclareVectorInputPort("irb1200_estimated_state", this->num_plant_states_*2);
@@ -39,21 +41,21 @@ namespace simulation {
 
     void AbbMotionPlanner::calc_motion_output(const drake::systems::Context<double>& context, drake::systems::BasicVector<double>* vector) const {
         auto t = context.get_time();
-        auto& traj = context.get_abstract_state<drake::trajectories::PathParameterizedTrajectory<double>>(1);
-        vector->get_mutable_value()(Eigen::seqN(0, 6)) = traj.value(t);
-        vector->get_mutable_value()(Eigen::seqN(6, 12)) = traj.EvalDerivative(t, 1);
+        auto& traj = context.get_abstract_state<drake::trajectories::PathParameterizedTrajectory<double>>(this->traj_index_);
+        vector->get_mutable_value()(Eigen::seqN(0, this->num_plant_states_)) = traj.value(t);
+        vector->get_mutable_value()(Eigen::seqN(this->num_plant_states_, this->num_plant_states_)) = traj.EvalDerivative(t, 1);
     };
 
     drake::systems::EventStatus AbbMotionPlanner::update_trajectory(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const {
-        /*
-        auto& mutable_context = state->get_mutable_abstract_state().get_mutable_value(0).get_mutable_value<drake::systems::Context<double>>();
+        auto& mutable_abstract_state = state->get_mutable_abstract_state();
+        auto& mutable_context = mutable_abstract_state.get_mutable_value(0).get_mutable_value<drake::systems::Context<double>>();
         this->plant_.SetPositionsAndVelocities(&mutable_context, this->GetInputPort("irb1200_estimated_state").Eval(context));
         
         auto q0 = this->plant_.GetPositions(mutable_context);
         auto initial = this->plant_.GetBodyByName("gripper_frame").body_frame().CalcPoseInWorld(mutable_context);
         auto goal = this->GetInputPort("target_ee_location").Eval<drake::math::RigidTransformd>(context);
 
-        double speed = 1.0;
+        double speed = 0.5;
         auto distance = (goal.translation() - initial.translation()).norm();
         double end_time = distance / speed;
 
@@ -96,9 +98,9 @@ namespace simulation {
             Eigen::Vector<double, 1>::Zero()
         );
 
-        auto traj = state->get_abstract_state<drake::trajectories::PathParameterizedTrajectory<double>>(1);
-        traj = drake::trajectories::PathParameterizedTrajectory<double>(linear_traj, time_scaling);
-        */
+        auto& mutable_state_traj = mutable_abstract_state.get_mutable_value(1).get_mutable_value<drake::trajectories::PathParameterizedTrajectory<double>>();
+
+        mutable_state_traj = drake::trajectories::PathParameterizedTrajectory<double>(linear_traj, time_scaling);
 
         return drake::systems::EventStatus::Succeeded();
     };

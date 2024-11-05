@@ -8,15 +8,18 @@
 namespace simulation {
     class AbbMotionPlanner : public drake::systems::LeafSystem<double> {
     public:
-        explicit AbbMotionPlanner();
+        explicit AbbMotionPlanner(const double speed);
     private:
         void calc_motion_output(const drake::systems::Context<double>& context, drake::systems::BasicVector<double>* vector) const;
         drake::systems::EventStatus update_trajectory(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const;
 
         drake::multibody::MultibodyPlant<double> plant_;
+        std::unique_ptr<drake::systems::Context<double>> plant_context_;
 
+        const double speed_;
         drake::systems::AbstractStateIndex traj_index_;
         drake::systems::AbstractStateIndex target_location_index_;
+        
         const int num_plant_states_ = 6;
     };
 }

@@ -183,6 +183,7 @@ RobotDiagram::RobotDiagram(
     builder.ExportOutput(im_to_pc_0->get_output_port(), "point_cloud_0");
     builder.ExportOutput(im_to_pc_1->get_output_port(), "point_cloud_1");
 */
+
     drake::visualization::AddDefaultVisualization(&builder, meshcat);
 
     builder.BuildInto(this);
