@@ -144,10 +144,7 @@ int main(int argc, char ** argv) {
     sim.AdvanceTo(30.0);
 
     meshcat->PublishRecording();
-    
-    int t;
-    std::cout << "Finished" << std::endl;
-    std::cin >> t;
+
     /*
     while (true) {
         auto time = sim.get_context().get_time();
