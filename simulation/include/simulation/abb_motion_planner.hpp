@@ -11,6 +11,7 @@ namespace simulation {
         explicit AbbMotionPlanner(const double speed);
     private:
         void calc_motion_output(const drake::systems::Context<double>& context, drake::systems::BasicVector<double>* vector) const;
+        drake::systems::EventStatus initialize_discrete(const drake::systems::Context<double>& context, drake::systems::DiscreteValues<double>* value) const;
         drake::systems::EventStatus update_trajectory(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const;
 
         drake::multibody::MultibodyPlant<double> plant_;

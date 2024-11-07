@@ -26,7 +26,7 @@ using simulation::package_path;
 namespace {
     int index(const std::vector<std::string>& list, std::string element) {
         int index = 0;
-        while (!list[index].compare(element)) 
+        while (!(list[index].compare(element) == 0)) 
             index++;
         return index;
     };
@@ -157,7 +157,7 @@ RobotDiagram::RobotDiagram(
     auto names_raw = plant->GetStateNames(svh);
     std::vector<std::string> names;
     for (std::string name : names_raw) {
-        if (name.compare(0, 10, "left_hand_") && isupper(name[10])) {
+        if (isupper(name[10])) {
             names.push_back(name);
         }
     }
@@ -172,6 +172,7 @@ RobotDiagram::RobotDiagram(
 
     builder.ExportOutput(mux->get_output_port(), "svh_state");
     builder.ExportOutput(plant->get_net_actuation_output_port(svh), "svh_net_actuation");
+
 /*
     builder.ExportOutput(cam0->GetOutputPort("color_image"), "camera0_color_image");
     builder.ExportOutput(cam0->GetOutputPort("depth_image_32f"), "camera0_depth_image");
@@ -193,7 +194,7 @@ drake::math::RigidTransformd RobotDiagram::get_camera_pose(const Eigen::Vector3d
     Eigen::Vector3d focus_translation = camera_position - focus_point;
     double base_length = focus_translation(Eigen::seq(0,2)).norm();
     double x_rot_angle;
-    if (base_length < 0.0001) {
+    if (abs(base_length) < 0.0001) {
         if (focus_translation(2) > 0) {
             x_rot_angle = M_PI_2f64;
         } else {

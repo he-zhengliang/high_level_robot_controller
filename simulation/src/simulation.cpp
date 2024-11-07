@@ -26,31 +26,44 @@
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 
-class EndEffectorTranslator : public drake::systems::LeafSystem<double> {
+
+class DynamicJointStateMessageCreator : public drake::systems::LeafSystem<double> {
 public:
-    explicit EndEffectorTranslator() {
-        this->DeclareAbstractInputPort("ee_ros_command", *drake::AbstractValue::Make(geometry_msgs::msg::Pose()));
-        this->DeclareAbstractOutputPort("ee_rigid_transform", &EndEffectorTranslator::calc_output);
+    explicit DynamicJointStateMessageCreator() {
+        this->DeclareVectorInputPort("svh_state", 18);
+        this->DeclareVectorInputPort("svh_effort", 9);
+        this->DeclareAbstractOutputPort("dynamic_joint_state_message", &DynamicJointStateMessageCreator::create_message);
     }
 
 private:
-    void calc_output(const drake::systems::Context<double>& context, drake::math::RigidTransformd* output) const {
-        *output = drake_ros::core::RosPoseToRigidTransform(this->get_input_port().Eval<geometry_msgs::msg::Pose>(context));
+    void create_message(const drake::systems::Context<double>& context, control_msgs::msg::DynamicJointState* message) const {
+        auto state = this->get_input_port(0).Eval(context);
+        auto effort = this->get_input_port(1).Eval(context);
+
+        *message = control_msgs::msg::DynamicJointState();
+        message->joint_names = names;
+
+        message->interface_values.resize(9);
+        for (int i = 0; i < 9; i++) {
+            message->interface_values[i].interface_names = {"position", "velocity", "effort", "current"};
+            message->interface_values[i].values = {state(i), state(i+9), effort(i), 0.0};
+        }
     }
+
+    const std::vector<std::string> names =  {
+        "Left_Hand_Thumb_Opposition",
+        "Left_Hand_Thumb_Flexion",
+        "Left_Hand_Index_Finger_Proximal",
+        "Left_Hand_Index_Finger_Distal",
+        "Left_Hand_Middle_Finger_Proximal",
+        "Left_Hand_Middle_Finger_Distal",
+        "Left_Hand_Finger_Spread",
+        "Left_Hand_Pinky",
+        "Left_Hand_Ring_Finger"
+    };
+
 };
 
-class JointTrajectoryTranslator : public drake::systems::LeafSystem<double> {
-public:
-    explicit JointTrajectoryTranslator() {
-        this->DeclareAbstractInputPort("joint_trajectory_command", *drake::AbstractValue::Make(trajectory_msgs::msg::JointTrajectory()));
-        this->DeclareVectorOutputPort("joint_trajectory_command_vector", 18, &JointTrajectoryTranslator::calc_output);
-    }
-
-private:
-    void calc_output(const drake::systems::Context<double>& context, drake::systems::BasicVector<double>* vector) const {
-        vector->SetZero();
-    }
-};
 
 int main(int argc, char ** argv) {
     (void) argc;
@@ -69,46 +82,74 @@ int main(int argc, char ** argv) {
     // Drake ROS2system
     auto ros_system = builder.AddSystem<drake_ros::core::RosInterfaceSystem>(std::make_unique<drake_ros::core::DrakeRos>("simulator_node"));
 
-    // ROS2 publisher to output SVH DynamicJointStates
-    auto joint_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<control_msgs::msg::DynamicJointState>("/dynamic_joint_states", qos, ros_system->get_ros_interface()));
+    // ROS2 publisher to output SVH DynamicJointStates  
+    auto joint_output = builder.AddSystem(
+        drake_ros::core::RosPublisherSystem::Make<control_msgs::msg::DynamicJointState>(
+            "/dynamic_joint_states", 
+            qos, 
+            ros_system->get_ros_interface(),
+            {drake::systems::TriggerType::kPeriodic},
+            0.02
+        )
+    );
 
     // ROS2 publisher to output ABB JointStates
-    auto abb_joint_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<control_msgs::msg::DynamicJointState>("/abb_dynamic_joint_states", qos, ros_system->get_ros_interface()));
+    // auto abb_joint_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<control_msgs::msg::DynamicJointState>("/abb_dynamic_joint_states", qos, ros_system->get_ros_interface()));
 
-    // ROS2 subscriber to get the input desired trajectory
+    // ROS2 subscriber to get the input svh desired trajectory
     auto joint_trajectory = builder.AddSystem(drake_ros::core::RosSubscriberSystem::Make<trajectory_msgs::msg::JointTrajectory>("/left_hand/joint_trajectory", qos, ros_system->get_ros_interface()));
     
     // ROS2 subscriber to get the desired end effector pose
     auto ee_pose = builder.AddSystem(drake_ros::core::RosSubscriberSystem::Make<geometry_msgs::msg::Pose>("/abb_irb1200/ee_pose", qos, ros_system->get_ros_interface()));
 
-    // System to translate between ROS2 Pose messages and Drake RigidTransformd
-    auto ee_trans = builder.AddSystem<EndEffectorTranslator>();
-    builder.Connect(ee_pose->get_output_port(), ee_trans->get_input_port());
-
     // Add ABB Motion Planner which takes a pose and gives commands to the ABB to interpolate between the current point and the target point
-    auto abb_motion_planner = builder.AddSystem<simulation::AbbMotionPlanner>(0.3);
+    auto abb_motion_planner = builder.AddSystem<simulation::AbbMotionPlanner>(1.0);
 
     // Add Svh Motion Planner which takes a joint trajectory and converts it to a smoothly interpolated signal for the SVH motors
     auto svh_motion_planner = builder.AddSystem<simulation::SvhMotionPlanner>();
+    builder.Connect(joint_trajectory->get_output_port(), svh_motion_planner->get_input_port(0));
     
     // Add RobotDiagram system which contains all of the multibody simulation and low level controllers
     auto world_sdf_location = simulation::package_path::get_package_share_path("simulation") + std::string("world/world.sdf");
     auto system = builder.AddSystem<simulation::RobotDiagram>(0.001, meshcat, false, std::vector<std::string>{world_sdf_location});
+
     builder.Connect(abb_motion_planner->get_output_port(), system->GetInputPort("irb1200_desired_state"));
-
     builder.Connect(system->GetOutputPort("irb1200_state"), abb_motion_planner->GetInputPort("irb1200_estimated_state"));
+    builder.Connect(ee_pose->get_output_port(), abb_motion_planner->GetInputPort("target_ee_location"));
+    builder.Connect(svh_motion_planner->get_output_port(), system->GetInputPort("svh_desired_state"));
+    builder.Connect(system->GetOutputPort("svh_state"), svh_motion_planner->get_input_port(1));
 
-    builder.Connect(ee_trans->get_output_port(), abb_motion_planner->GetInputPort("target_ee_location"));
+    auto djsmc = builder.AddSystem<DynamicJointStateMessageCreator>();
+    builder.Connect(system->GetOutputPort("svh_state"), djsmc->get_input_port(0));
+    builder.Connect(system->GetOutputPort("svh_net_actuation"), djsmc->get_input_port(1));
+    builder.Connect(djsmc->get_output_port(), joint_output->get_input_port());
 
     auto diagram = builder.Build();
-    
+
+    {
+        std::ofstream file;
+        file.open("/home/alexm/diagram_log.txt");
+        if (file.is_open()) {
+            file << diagram->GetGraphvizString();
+            file.close();
+        } else {
+            std::cerr << "Error opening file for writing" << std::endl;
+        }
+    }
     auto sim = drake::systems::Simulator<double>(std::move(diagram));
     sim.set_target_realtime_rate(1.0);
 
+    meshcat->StartRecording();
+
+    sim.AdvanceTo(30.0);
+
+    meshcat->PublishRecording();
+
+    /*
     while (true) {
         auto time = sim.get_context().get_time();
         auto result = sim.AdvanceTo(time + 1.0);
-    }
+    }*/
 }
 
     /* Test rigid transform
