@@ -30,20 +30,10 @@ namespace simulation {
 
         this->target_location_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(*plant_context_));
 
-        /*
         auto temp = drake::trajectories::PathParameterizedTrajectory<double>(
             drake::trajectories::PiecewisePolynomial<double>(Eigen::Vector<double, 6>::Zero()), 
             drake::trajectories::PiecewisePolynomial<double>(Eigen::Vector<double, 1>::Zero())
-        );*/
-
-        auto basis = drake::math::BsplineBasis<double>(4, std::vector{0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0});
-
-        auto temp = drake::trajectories::BsplineTrajectory<double>(basis, {
-            Eigen::Vector<double, 6>::Zero(),
-            Eigen::Vector<double, 6>::Zero(),
-            Eigen::Vector<double, 6>::Zero(),
-            Eigen::Vector<double, 6>::Zero()
-        });
+        );
 
         this->traj_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(temp));
         this->DeclareDiscreteState(7);
@@ -60,7 +50,7 @@ namespace simulation {
 
     void AbbMotionPlanner::calc_motion_output(const drake::systems::Context<double>& context, drake::systems::BasicVector<double>* vector) const {
         auto t = context.get_time();
-        auto& traj = context.get_abstract_state<drake::trajectories::BsplineTrajectory<double>>(this->traj_index_);
+        auto& traj = context.get_abstract_state<drake::trajectories::PathParameterizedTrajectory<double>>(this->traj_index_);
         vector->get_mutable_value()(Eigen::seqN(0, this->num_plant_states_)) = traj.value(t);
         vector->get_mutable_value()(Eigen::seqN(this->num_plant_states_, this->num_plant_states_)) = traj.EvalDerivative(t, 1);
     };
@@ -123,95 +113,6 @@ namespace simulation {
             }
         }
 
-        const int num_knots = 5;
-        auto traj_opt = drake::planning::trajectory_optimization::KinematicTrajectoryOptimization(this->plant_.num_positions(), num_knots);
-        auto& prog = traj_opt.get_mutable_prog();
-        traj_opt.AddDurationCost(1.0);
-        traj_opt.AddPathLengthCost(1.0);
-        traj_opt.AddPositionBounds(this->plant_.GetPositionLowerLimits(), this->plant_.GetPositionUpperLimits());
-        traj_opt.AddVelocityBounds(this->plant_.GetVelocityLowerLimits(), this->plant_.GetVelocityUpperLimits());
-        traj_opt.AddDurationConstraint(0.5, 50.0);
-
-        auto start_constraint = std::make_shared<drake::multibody::PositionConstraint> (
-            &this->plant_,
-            this->plant_.world_frame(),
-            initial.translation(),
-            initial.translation(),
-            this->plant_.GetFrameByName("gripper_frame"),
-            Eigen::Vector3d{0.0, 0.0, 0.0},
-            &mutable_context
-        );
-
-        traj_opt.AddPathPositionConstraint(start_constraint, 0.0);
-
-        auto goal_constraint = std::make_shared<drake::multibody::PositionConstraint> (
-            &this->plant_,
-            this->plant_.world_frame(),
-            goal.translation(),
-            goal.translation(),
-            this->plant_.GetFrameByName("gripper_frame"),
-            Eigen::Vector3d{0.0, 0.0, 0.0},
-            &mutable_context
-        );
-
-        traj_opt.AddPathPositionConstraint(goal_constraint, 1.0);
-
-        auto start_orientation = std::make_shared<drake::multibody::OrientationConstraint> (
-            &this->plant_,
-            this->plant_.world_frame(),
-            initial.rotation(),
-            this->plant_.GetFrameByName("gripper_frame"),
-            drake::math::RotationMatrixd::Identity(),
-            0.0,
-            &mutable_context
-        );
-
-        traj_opt.AddPathPositionConstraint(start_orientation, 0.0);
-
-        auto goal_orientation = std::make_shared<drake::multibody::OrientationConstraint> (
-            &this->plant_,
-            this->plant_.world_frame(),
-            goal.rotation(),
-            this->plant_.GetFrameByName("gripper_frame"),
-            drake::math::RotationMatrixd::Identity(),
-            0.0, 
-            &mutable_context
-        );
-
-        traj_opt.AddPathPositionConstraint(goal_orientation, 1.0);
-
-        auto num_q = this->plant_.num_positions();
-        assert(num_q == 6);
-
-        // Maybe don't add cost
-        prog.AddQuadraticErrorCost(Eigen::Matrix<double, 6, 6>::Identity(), q0, traj_opt.control_points()(Eigen::all, 5));
-
-        traj_opt.AddPathVelocityConstraint(Eigen::Vector<double, 6>::Zero(), Eigen::Vector<double, 6>::Zero(), 0);
-        traj_opt.AddPathVelocityConstraint(Eigen::Vector<double, 6>::Zero(), Eigen::Vector<double, 6>::Zero(), 1);
-
-        std::vector<Eigen::MatrixXd> break_point_vector;
-        break_point_vector.resize(num_knots);
-        for (int x = 0; x < num_knots; x++) {
-            break_point_vector[x].resize(6, 1);
-            break_point_vector[x] = (static_cast<double>((num_knots - 1 - x)) / static_cast<double>((num_knots - 1)))*q0 + (static_cast<double>(x) / static_cast<double>((num_knots - 1))) * q1;
-        }
-
-        auto basis = drake::math::BsplineBasis<double>(4, num_knots);
-        auto initial_guess = drake::trajectories::BsplineTrajectory<double>(basis, break_point_vector);
-
-        traj_opt.SetInitialGuess(initial_guess);
-        auto result = drake::solvers::Solve(prog);
-
-        if (! result.is_success()) {            
-            std::cout << "Trajopt Failed!\n";
-        }
-
-        mutable_abstract_state.get_mutable_value(1).get_mutable_value<drake::trajectories::BsplineTrajectory<double>>()
-            = traj_opt.ReconstructTrajectory(result);
-
-        return drake::systems::EventStatus::Succeeded();
-
-        /*
         Eigen::Matrix<double, 6, 2> M;
         M << q0, q1;
 
@@ -227,6 +128,5 @@ namespace simulation {
             = drake::trajectories::PathParameterizedTrajectory<double>(linear_traj, time_scaling);
 
         return drake::systems::EventStatus::Succeeded();
-        */
     };
 }
