@@ -103,7 +103,7 @@ int main(int argc, char ** argv) {
     auto ee_pose = builder.AddSystem(drake_ros::core::RosSubscriberSystem::Make<geometry_msgs::msg::Pose>("/abb_irb1200/ee_pose", qos, ros_system->get_ros_interface()));
 
     // Add ABB Motion Planner which takes a pose and gives commands to the ABB to interpolate between the current point and the target point
-    auto abb_motion_planner = builder.AddSystem<simulation::AbbMotionPlanner>(1.0);
+    auto abb_motion_planner = builder.AddSystem<simulation::AbbMotionPlanner>(0.3);
 
     // Add Svh Motion Planner which takes a joint trajectory and converts it to a smoothly interpolated signal for the SVH motors
     auto svh_motion_planner = builder.AddSystem<simulation::SvhMotionPlanner>();
@@ -124,6 +124,11 @@ int main(int argc, char ** argv) {
     builder.Connect(system->GetOutputPort("svh_net_actuation"), djsmc->get_input_port(1));
     builder.Connect(djsmc->get_output_port(), joint_output->get_input_port());
 
+    auto abb_state_logger = builder.AddSystem<drake::systems::VectorLogSink<double>>(12);
+    builder.Connect(system->GetOutputPort("irb1200_state"), abb_state_logger->get_input_port());
+    auto abb_input_logger = builder.AddSystem<drake::systems::VectorLogSink<double>>(12);
+    builder.Connect(abb_motion_planner->get_output_port(), abb_input_logger->get_input_port());
+
     auto diagram = builder.Build();
 
     {
@@ -136,14 +141,42 @@ int main(int argc, char ** argv) {
             std::cerr << "Error opening file for writing" << std::endl;
         }
     }
+
     auto sim = drake::systems::Simulator<double>(std::move(diagram));
     sim.set_target_realtime_rate(1.0);
 
     meshcat->StartRecording();
 
-    sim.AdvanceTo(30.0);
+    sim.AdvanceTo(10.0);
 
     meshcat->PublishRecording();
+
+
+    std::ofstream file;
+    file.open("/home/alexm/abb_log.txt");
+    if (file.is_open()) {
+        auto abb_state_log = abb_state_logger->GetLog(abb_state_logger->GetMyContextFromRoot(sim.get_context()));
+        auto abb_input_log = abb_input_logger->GetLog(abb_input_logger->GetMyContextFromRoot(sim.get_context()));
+        file 
+        << "<abb_state>"
+            << "<input_size>" << abb_state_log.get_input_size() << "</input_size>"
+            << "<num_samples>" << abb_state_log.num_samples() << "</num_samples>"
+            << "<sample_times>" << abb_state_log.sample_times() << "</sample_times>"
+            << "<data>" << abb_state_log.data() << "</data>"
+        << "</abb_state>"
+        << "<abb_input>"
+            << "<input_size>" << abb_input_log.get_input_size() << "</input_size>"
+            << "<num_samples>" << abb_input_log.num_samples() << "</num_samples>"
+            << "<sample_times>" << abb_input_log.sample_times() << "</sample_times>"
+            << "<data>" << abb_input_log.data() << "</data>"
+        << "</abb_input>"
+        ;
+        std::cout << "Wrote to file\n";
+        file.close();
+    }
+
+    int x;
+    std::cin >> x;
 
     /*
     while (true) {

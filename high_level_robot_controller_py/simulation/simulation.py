@@ -81,9 +81,7 @@ def show_mock_triad(name:str, pose:RigidTransform):
 # end position of the abb motion planner number 1
 X_WG = RigidTransform(RotationMatrix().MakeXRotation(np.pi) @ RotationMatrix().MakeYRotation(np.pi/2), [0.6, 0.05, 0.05])
 
-target_ee_port:InputPort
 diagram, context, target_ee_port, svh_desired_state = get_diagram()
-svh_desired_state:InputPort
 target_ee_port.FixValue(target_ee_port.get_system().GetMyContextFromRoot(context), AbstractValue.Make(X_WG))
 svh_desired_state.FixValue(svh_desired_state.get_system().GetMyContextFromRoot(context), np.zeros(svh_desired_state.size()))
 sim = Simulator(diagram, context)
