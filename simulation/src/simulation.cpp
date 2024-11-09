@@ -128,6 +128,10 @@ int main(int argc, char ** argv) {
     builder.Connect(system->GetOutputPort("irb1200_state"), abb_state_logger->get_input_port());
     auto abb_input_logger = builder.AddSystem<drake::systems::VectorLogSink<double>>(12);
     builder.Connect(abb_motion_planner->get_output_port(), abb_input_logger->get_input_port());
+    auto svh_state_logger = builder.AddSystem<drake::systems::VectorLogSink<double>>(18);
+    builder.Connect(system->GetOutputPort("svh_state"), svh_state_logger->get_input_port());
+    auto svh_input_logger = builder.AddSystem<drake::systems::VectorLogSink<double>>(18);
+    builder.Connect(svh_motion_planner->get_output_port(), svh_input_logger->get_input_port());
 
     auto diagram = builder.Build();
 
@@ -174,6 +178,29 @@ int main(int argc, char ** argv) {
         std::cout << "Wrote to file\n";
         file.close();
     }
+
+    file.open("/home/alexm/svh_log.txt");
+    if (file.is_open()) {
+        auto svh_state_log = svh_state_logger->GetLog(svh_state_logger->GetMyContextFromRoot(sim.get_context()));
+        auto svh_input_log = svh_input_logger->GetLog(svh_input_logger->GetMyContextFromRoot(sim.get_context()));
+        file 
+        << "<svh_state>"
+            << "<input_size>" << svh_state_log.get_input_size() << "</input_size>"
+            << "<num_samples>" << svh_state_log.num_samples() << "</num_samples>"
+            << "<sample_times>" << svh_state_log.sample_times() << "</sample_times>"
+            << "<data>" << svh_state_log.data() << "</data>"
+        << "</svh_state>"
+        << "<svh_input>"
+            << "<input_size>" << svh_input_log.get_input_size() << "</input_size>"
+            << "<num_samples>" << svh_input_log.num_samples() << "</num_samples>"
+            << "<sample_times>" << svh_input_log.sample_times() << "</sample_times>"
+            << "<data>" << svh_input_log.data() << "</data>"
+        << "</svh_input>"
+        ;
+        std::cout << "Wrote to file\n";
+        file.close();
+    }
+
 
     int x;
     std::cin >> x;

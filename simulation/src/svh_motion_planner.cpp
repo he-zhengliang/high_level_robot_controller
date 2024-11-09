@@ -29,6 +29,9 @@ namespace simulation {
         this->DeclareVectorInputPort("current_joint_state", 18);
         this->DeclareVectorOutputPort("desired_joint_state", 18, &SvhMotionPlanner::calc_output);
 
+        sec_state_idx = this->DeclareAbstractState(*drake::AbstractValue::Make((int32_t)(-1)));
+        nano_state_idx = this->DeclareAbstractState(*drake::AbstractValue::Make((uint32_t)(0)));
+
         traj_state_idx = this->DeclareAbstractState(*drake::AbstractValue::Make(
             drake::trajectories::PiecewisePolynomial<double>(Eigen::Vector<double, 9>::Zero())
         ));
@@ -38,7 +41,7 @@ namespace simulation {
 
     void SvhMotionPlanner::calc_output(const drake::systems::Context<double>& context, drake::systems::BasicVector<double>* output) const {
         auto& traj = context.get_abstract_state().get_value(traj_state_idx).get_value<drake::trajectories::PiecewisePolynomial<double>>();
-        auto t = context.get_time();
+        auto t = context.get_time();// - context.get_discrete_state().value()(0);
         output->get_mutable_value()(Eigen::seqN(0, 9))  = traj.value(t);
         output->get_mutable_value()(Eigen::seqN(9, 9)) = traj.EvalDerivative(t, 1);
     }
@@ -46,27 +49,17 @@ namespace simulation {
     drake::systems::EventStatus SvhMotionPlanner::update_trajectory(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const {
         const auto jt = this->get_input_port(0).Eval<trajectory_msgs::msg::JointTrajectory>(context);
         size_t num_names = jt.joint_names.size();
-        if (num_names == 0) {
+        auto last_time_sec = context.get_abstract_state<int32_t>(sec_state_idx);
+        auto last_time_nano = context.get_abstract_state<uint32_t>(nano_state_idx);
+        if ((last_time_sec == jt.header.stamp.sec && last_time_nano == jt.header.stamp.nanosec) || num_names == 0) {
             return drake::systems::EventStatus::Succeeded();
         };
-
+        state->get_mutable_abstract_state<int32_t>(sec_state_idx) = jt.header.stamp.sec;
+        state->get_mutable_abstract_state<uint32_t>(nano_state_idx) = jt.header.stamp.nanosec;
+        
         const auto time = context.get_time();
-        const auto current_state = this->get_input_port(1).Eval<Eigen::Vector<double, 18>>(context);
+        const auto current_state = this->get_input_port(1).Eval(context);
 
-        /*
-        
-        if (traj.end_time() == INFINITY) {
-            Eigen::Matrix<double, 9, 2> positions;
-            positions << Eigen::Vector<double, 9>::Zero(), current_state(Eigen::seqN(0, 9));
-
-            Eigen::Matrix<double, 9, 2> velocities;
-            velocities << Eigen::Vector<double, 9>::Zero(), current_state(Eigen::seqN(9, 9));
-
-            traj = drake::trajectories::PiecewisePolynomial<double>::CubicHermite(Eigen::Vector2d{0.0, time}, positions, velocities);
-        }
-        traj = drake::trajectories::PiecewisePolynomial<double>(current_state);
-        */
-        
         const auto num_breaks = jt.points.size() + 1;
         Eigen::VectorXd breaks;
         {
@@ -88,9 +81,10 @@ namespace simulation {
         positions(Eigen::all, 0) = Eigen::Vector<double, 9>::Zero();
         velocities(Eigen::all, 0) = Eigen::Vector<double, 9>::Zero();
 
-        auto& traj = state->get_mutable_abstract_state<drake::trajectories::PiecewisePolynomial<double>>(0);
+        auto traj = context.get_abstract_state<drake::trajectories::PiecewisePolynomial<double>>(traj_state_idx);
 
         for (size_t i = 0; i < names.size(); i++) {
+            std::cout << names[i] << "\n";
 
             size_t index = 0;
             bool name_not_present = false;
@@ -100,9 +94,12 @@ namespace simulation {
                     break;
                 } else if (index >= num_names) {
                     name_not_present = true;
-                    break;
                 }
+                index++;
             }
+
+            std::cout << "Index: " << index << "\n";
+            std::cout << "name_not_present: " << name_not_present << "\n";
 
             if (!name_not_present) {
                 for (size_t b = 1; b < num_breaks; b++) {
@@ -117,7 +114,10 @@ namespace simulation {
             }
         }
 
-        traj = drake::trajectories::PiecewisePolynomial<double>::CubicHermite(breaks, positions, velocities);
+        std::cout << positions << "\n\n" << velocities << "\n\n";
+
+        state->get_mutable_abstract_state<drake::trajectories::PiecewisePolynomial<double>>(traj_state_idx)
+            = drake::trajectories::PiecewisePolynomial<double>::CubicHermite(breaks, positions, velocities);
 
         return drake::systems::EventStatus::Succeeded();
     }

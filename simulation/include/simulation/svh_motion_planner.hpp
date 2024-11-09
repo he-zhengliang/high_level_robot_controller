@@ -10,6 +10,8 @@ private:
 
     drake::systems::EventStatus update_trajectory(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const;
 
+    drake::systems::AbstractStateIndex sec_state_idx;
+    drake::systems::AbstractStateIndex nano_state_idx;
     drake::systems::AbstractStateIndex traj_state_idx;
 };
 }
