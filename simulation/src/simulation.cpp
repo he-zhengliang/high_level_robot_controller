@@ -137,7 +137,7 @@ int main(int argc, char ** argv) {
 
     {
         std::ofstream file;
-        file.open("/home/alexm/diagram_log.txt");
+        file.open("/home/alexm/simulation_logs/diagram_log.txt");
         if (file.is_open()) {
             file << diagram->GetGraphvizString();
             file.close();
@@ -157,7 +157,7 @@ int main(int argc, char ** argv) {
 
 
     std::ofstream file;
-    file.open("/home/alexm/abb_log.txt");
+    file.open("/home/alexm/simulation_logs/abb_log.txt");
     if (file.is_open()) {
         auto abb_state_log = abb_state_logger->GetLog(abb_state_logger->GetMyContextFromRoot(sim.get_context()));
         auto abb_input_log = abb_input_logger->GetLog(abb_input_logger->GetMyContextFromRoot(sim.get_context()));
@@ -179,7 +179,7 @@ int main(int argc, char ** argv) {
         file.close();
     }
 
-    file.open("/home/alexm/svh_log.txt");
+    file.open("/home/alexm/simulation_logs/svh_log.txt");
     if (file.is_open()) {
         auto svh_state_log = svh_state_logger->GetLog(svh_state_logger->GetMyContextFromRoot(sim.get_context()));
         auto svh_input_log = svh_input_logger->GetLog(svh_input_logger->GetMyContextFromRoot(sim.get_context()));
