@@ -2,6 +2,8 @@
 #include <fstream>
 #include <cstdlib>
 #include <ctime>
+#include <unistd.h>
+#include <pwd.h>
 
 #include "simulation/robot_diagram.hpp"
 #include "simulation/abb_motion_planner.hpp"
@@ -135,9 +137,15 @@ int main(int argc, char ** argv) {
 
     auto diagram = builder.Build();
 
+    const char* homedir = getpwuid(getuid())->pw_dir;
+    
+
     {
+	char filepath[100];
+	strcpy(filepath, homedir);
+	strcat(filepath, "/simulation_logs/diagram_log.txt");
         std::ofstream file;
-        file.open("/home/alexm/simulation_logs/diagram_log.txt");
+        file.open(filepath);
         if (file.is_open()) {
             file << diagram->GetGraphvizString();
             file.close();
@@ -155,9 +163,12 @@ int main(int argc, char ** argv) {
 
     meshcat->PublishRecording();
 
-
+    {
     std::ofstream file;
-    file.open("/home/alexm/simulation_logs/abb_log.txt");
+    char filename[100];
+    strcpy(filename, homedir);
+    strcat(filename, "/simulation_logs/abb_log.txt");
+    file.open(filename);
     if (file.is_open()) {
         auto abb_state_log = abb_state_logger->GetLog(abb_state_logger->GetMyContextFromRoot(sim.get_context()));
         auto abb_input_log = abb_input_logger->GetLog(abb_input_logger->GetMyContextFromRoot(sim.get_context()));
@@ -175,11 +186,19 @@ int main(int argc, char ** argv) {
             << "<data>" << abb_input_log.data() << "</data>"
         << "</abb_input>"
         ;
-        std::cout << "Wrote to file\n";
+        std::cout << "Wrote to file '" << filename << "'\n";
         file.close();
+    } else {
+	std::cout << "Failed to open abb log file '" << filename << "'\n";
+    }
     }
 
-    file.open("/home/alexm/simulation_logs/svh_log.txt");
+    {
+    std::ofstream file;
+    char filename[100];
+    strcpy(filename, homedir);
+    strcat(filename, "/simulation_logs/svh_log.txt");
+    file.open(filename);
     if (file.is_open()) {
         auto svh_state_log = svh_state_logger->GetLog(svh_state_logger->GetMyContextFromRoot(sim.get_context()));
         auto svh_input_log = svh_input_logger->GetLog(svh_input_logger->GetMyContextFromRoot(sim.get_context()));
@@ -197,8 +216,11 @@ int main(int argc, char ** argv) {
             << "<data>" << svh_input_log.data() << "</data>"
         << "</svh_input>"
         ;
-        std::cout << "Wrote to file\n";
+        std::cout << "Wrote to file'" << filename << "'\n";
         file.close();
+    } else {
+        std::cout << "Failed to open svh log file '" << filename << "'\n";
+    }
     }
 
 
