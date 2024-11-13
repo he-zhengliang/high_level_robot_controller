@@ -9,6 +9,7 @@
 #include "simulation/abb_motion_planner.hpp"
 #include "simulation/svh_motion_planner.hpp"
 #include "simulation/package_path.hpp"
+#include "simulation/ros_message_creator.hpp"
 
 #include <drake/geometry/meshcat.h>
 #include <drake/math/rigid_transform.h>
@@ -29,44 +30,6 @@
 #include <geometry_msgs/msg/pose.hpp>
 
 
-class DynamicJointStateMessageCreator : public drake::systems::LeafSystem<double> {
-public:
-    explicit DynamicJointStateMessageCreator() {
-        this->DeclareVectorInputPort("svh_state", 18);
-        this->DeclareVectorInputPort("svh_effort", 9);
-        this->DeclareAbstractOutputPort("dynamic_joint_state_message", &DynamicJointStateMessageCreator::create_message);
-    }
-
-private:
-    void create_message(const drake::systems::Context<double>& context, control_msgs::msg::DynamicJointState* message) const {
-        auto state = this->get_input_port(0).Eval(context);
-        auto effort = this->get_input_port(1).Eval(context);
-
-        *message = control_msgs::msg::DynamicJointState();
-        message->joint_names = names;
-
-        message->interface_values.resize(9);
-        for (int i = 0; i < 9; i++) {
-            message->interface_values[i].interface_names = {"position", "velocity", "effort", "current"};
-            message->interface_values[i].values = {state(i), state(i+9), effort(i), 0.0};
-        }
-    }
-
-    const std::vector<std::string> names =  {
-        "Left_Hand_Thumb_Opposition",
-        "Left_Hand_Thumb_Flexion",
-        "Left_Hand_Index_Finger_Proximal",
-        "Left_Hand_Index_Finger_Distal",
-        "Left_Hand_Middle_Finger_Proximal",
-        "Left_Hand_Middle_Finger_Distal",
-        "Left_Hand_Finger_Spread",
-        "Left_Hand_Pinky",
-        "Left_Hand_Ring_Finger"
-    };
-
-};
-
-
 int main(int argc, char ** argv) {
     (void) argc;
     (void) argv;
@@ -77,11 +40,9 @@ int main(int argc, char ** argv) {
     // Drake DiagramBuilder to connect all the systems
     auto builder = drake::systems::DiagramBuilder<double>();
 
-    // Drake ROS2 
+    // Drake ROS2 Node
     rclcpp::QoS qos{10};
     drake_ros::core::init();
-
-    // Drake ROS2system
     auto ros_system = builder.AddSystem<drake_ros::core::RosInterfaceSystem>(std::make_unique<drake_ros::core::DrakeRos>("simulator_node"));
 
     // ROS2 publisher to output SVH DynamicJointStates  
@@ -96,7 +57,7 @@ int main(int argc, char ** argv) {
     );
 
     // ROS2 publisher to output ABB JointStates
-    // auto abb_joint_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<control_msgs::msg::DynamicJointState>("/abb_dynamic_joint_states", qos, ros_system->get_ros_interface()));
+    auto abb_joint_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<control_msgs::msg::DynamicJointState>("/abb_dynamic_joint_states", qos, ros_system->get_ros_interface(), {drake::systems::TriggerType::kPeriodic}, 0.02));
 
     // ROS2 subscriber to get the input svh desired trajectory
     auto joint_trajectory = builder.AddSystem(drake_ros::core::RosSubscriberSystem::Make<trajectory_msgs::msg::JointTrajectory>("/left_hand/joint_trajectory", qos, ros_system->get_ros_interface()));
@@ -113,7 +74,7 @@ int main(int argc, char ** argv) {
     
     // Add RobotDiagram system which contains all of the multibody simulation and low level controllers
     auto world_sdf_location = simulation::package_path::get_package_share_path("simulation") + std::string("world/world.sdf");
-    auto system = builder.AddSystem<simulation::RobotDiagram>(0.001, meshcat, false, std::vector<std::string>{world_sdf_location});
+    auto system = builder.AddSystem<simulation::RobotDiagram>(0.002, meshcat, false, std::vector<std::string>{world_sdf_location});
 
     builder.Connect(abb_motion_planner->get_output_port(), system->GetInputPort("irb1200_desired_state"));
     builder.Connect(system->GetOutputPort("irb1200_state"), abb_motion_planner->GetInputPort("irb1200_estimated_state"));
@@ -121,10 +82,14 @@ int main(int argc, char ** argv) {
     builder.Connect(svh_motion_planner->get_output_port(), system->GetInputPort("svh_desired_state"));
     builder.Connect(system->GetOutputPort("svh_state"), svh_motion_planner->get_input_port(1));
 
-    auto djsmc = builder.AddSystem<DynamicJointStateMessageCreator>();
+    auto djsmc = builder.AddSystem<SvhDynamicJointStateMessageCreator>();
     builder.Connect(system->GetOutputPort("svh_state"), djsmc->get_input_port(0));
     builder.Connect(system->GetOutputPort("svh_net_actuation"), djsmc->get_input_port(1));
     builder.Connect(djsmc->get_output_port(), joint_output->get_input_port());
+
+    auto abb_djsmc = builder.AddSystem<AbbDynamicJointStateMessageCreator>();
+    builder.Connect(system->GetOutputPort("irb1200_state"), abb_djsmc->get_input_port(0));
+    builder.Connect(abb_djsmc->get_output_port(), abb_joint_output->get_input_port(0));
 
     auto abb_state_logger = builder.AddSystem<drake::systems::VectorLogSink<double>>(12);
     builder.Connect(system->GetOutputPort("irb1200_state"), abb_state_logger->get_input_port());
@@ -139,7 +104,6 @@ int main(int argc, char ** argv) {
 
     const char* homedir = getpwuid(getuid())->pw_dir;
     
-
     {
 	char filepath[100];
 	strcpy(filepath, homedir);
@@ -223,7 +187,7 @@ int main(int argc, char ** argv) {
     }
     }
 
-
+    std::cout << "Reached End\n";
     int x;
     std::cin >> x;
 
