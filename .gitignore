@@ -3,4 +3,5 @@ __pycache__/
 build/
 *.png
 drake-ros/
-.vscode
+.vscode/
+*/.vscode/

@@ -72,5 +72,16 @@
         "future": "cpp",
         "shared_mutex": "cpp",
         "cfenv": "cpp"
-    }
+    },
+    "C_Cpp.files.exclude": {
+        "/": true,
+        "**/.vscode": true,
+        "**/.vs": true,
+        "**/.git": true
+    },
+    "C_Cpp.exclusionPolicy": "checkFilesAndFolders",
+    "cmake.automaticReconfigure": false,
+    "cmake.buildBeforeRun": false,
+    "cmake.configureOnEdit": false,
+    "cmake.configureOnOpen": false,
 }

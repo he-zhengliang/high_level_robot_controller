@@ -7,24 +7,34 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp)
-find_package(geometry_msgs)
-find_package(control_msgs)
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(control_msgs REQUIRED)
+find_package(Protobuf REQUIRED)
 
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-add_executable(abb_ros2_driver src/abb_ros2_driver.cpp)
+include_directories(${Protobuf_INCLUDE_DIRS})
+set(PROTO_SRC egm/egm.pb.cc)
+set(PROTO_HDR egm/egm.pb.h)
+
+add_executable(abb_ros2_driver src/abb_ros2_driver.cpp ${PROTO_SRC})
 target_include_directories(abb_ros2_driver PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
+target_include_directories(abb_ros2_driver PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/egm>
+  $<INSTALL_INTERFACE:egm>)
+
 target_compile_features(abb_ros2_driver PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 ament_target_dependencies(abb_ros2_driver
   rclcpp
   geometry_msgs
   control_msgs
 )
+target_link_libraries(abb_ros2_driver ${Protobuf_LIBRARIES})
 
 install(TARGETS abb_ros2_driver
   DESTINATION lib/${PROJECT_NAME})
