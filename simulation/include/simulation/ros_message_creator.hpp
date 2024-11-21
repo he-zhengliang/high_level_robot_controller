@@ -1,6 +1,15 @@
 #include <drake/systems/framework/leaf_system.h>
 #include <control_msgs/msg/dynamic_joint_state.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <vector>
+
+class PointCloudMessageCreator : public drake::systems::LeafSystem<double> {
+public:
+    explicit PointCloudMessageCreator() {
+        this->DeclareAbstractInputPort("point_cloud", *drake::AbstractValue::Make(sensor_msgs::msg::PointCloud2()));
+    }
+private:
+};
 
 class SvhDynamicJointStateMessageCreator : public drake::systems::LeafSystem<double> {
 public:

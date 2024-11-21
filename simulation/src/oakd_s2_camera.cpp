@@ -3,36 +3,48 @@
 #include <drake/systems/framework/diagram_builder.h>
 
 #include <drake/systems/sensors/rgbd_sensor.h>
-#include <drake/geometry/render_gl/factory.h>
 #include <drake/geometry/render/render_camera.h>
 #include <drake/perception/point_cloud_flags.h>
 #include <drake/perception/depth_image_to_point_cloud.h>
+#include <drake/geometry/scene_graph.h>
 
 namespace simulation {
     OakdS2Camera::OakdS2Camera(drake::geometry::SceneGraph<double>* scene_graph, const Eigen::Vector3d& camera_position, const Eigen::Vector3d& focus_point, bool include_color_in_point_cloud) {
         drake::systems::DiagramBuilder<double> builder;
-        
-        auto engine = drake::geometry::MakeRenderEngineGl();
-        scene_graph->AddRenderer("default_renderer", std::move(engine));
-        
-        constexpr double color_vfov = 55.0 * M_PI / 180.0;
+                
+        const double color_focal_length = 3.37e-3;
+        const double color_pixel_size = 1.12e-6;
+        const double color_width = 4208;
+        const double color_height = 3120;
+
         auto color_camera_info = drake::systems::sensors::CameraInfo (
-            4056, 
-            3040,
-            color_vfov
+            static_cast<int>(color_width), 
+            static_cast<int>(color_height),
+            color_focal_length / color_pixel_size,
+            color_focal_length / color_pixel_size,
+            (color_width + 1) / 2,
+            (color_height + 1) / 2
         );
 
+        const double depth_focal_length = 1.3e-3;
+        const double depth_pixel_size = 3.0e-6;
+        const double depth_width = 640;
+        const double depth_height = 480;
+
         auto depth_camera_info = drake::systems::sensors::CameraInfo (
-            1280,
-            800,
-            color_vfov
+            static_cast<int>(depth_width), 
+            static_cast<int>(depth_height),
+            depth_focal_length / depth_pixel_size,
+            depth_focal_length / depth_pixel_size,
+            (depth_width + 1) / 2,
+            (depth_height + 1) / 2
         );
 
         auto color_camera = drake::geometry::render::ColorRenderCamera(
             drake::geometry::render::RenderCameraCore(
                 "default_renderer",
                 color_camera_info,
-                drake::geometry::render::ClippingRange(0.1, 10.0),
+                drake::geometry::render::ClippingRange(0.5, 10.0),
                 drake::math::RigidTransformd()
             )
         );
@@ -41,17 +53,18 @@ namespace simulation {
             drake::geometry::render::RenderCameraCore(
                 "default_renderer",
                 depth_camera_info,
-                drake::geometry::render::ClippingRange(0.1, 10.0),
+                drake::geometry::render::ClippingRange(0.065, 10.0),
                 drake::math::RigidTransformd()
             ),
-            drake::geometry::render::DepthRange(0.28, 10.0)
+            drake::geometry::render::DepthRange(0.065, 10.0)
         );
 
         auto camera_pose = this->get_camera_pose(camera_position, focus_point);
 
         auto cam = builder.AddSystem<drake::systems::sensors::RgbdSensor>(scene_graph->world_frame_id(), camera_pose, color_camera, depth_camera);
+        const auto a = drake::geometry::SceneGraph<double>().get_query_output_port().get_data_type();
 
-        builder.Connect(scene_graph->get_query_output_port(), cam->get_input_port());
+        builder.ExportInput(cam->get_input_port());
 
         auto im_to_pc = builder.AddSystem<drake::perception::DepthImageToPointCloud>(depth_camera_info);
 
@@ -65,6 +78,7 @@ namespace simulation {
         builder.ExportOutput(cam->GetOutputPort("color_image"), "color_image");
         builder.ExportOutput(cam->GetOutputPort("depth_image_32f"), "depth_image_32f");
         builder.ExportOutput(im_to_pc->get_output_port(), "point_cloud");
+        builder.ExportOutput(cam->body_pose_in_world_output_port(), "pose");
 
         builder.BuildInto(this);
     }

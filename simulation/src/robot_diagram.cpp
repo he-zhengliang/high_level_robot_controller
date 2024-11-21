@@ -12,7 +12,7 @@
 #include <drake/multibody/parsing/parser.h>
 #include <drake/geometry/meshcat.h>
 #include <drake/visualization/visualization_config_functions.h>
-#include <cmath>
+#include <drake/geometry/render_gl/factory.h>
 
 namespace simulation {
 
@@ -73,12 +73,7 @@ RobotDiagram::RobotDiagram(
     auto abb_controller = RobotDiagram::abb_inverse_dynamics_controller(builder);
 
     builder.Connect(abb_controller->get_output_port(), plant->get_actuation_input_port(robot));
-    builder.Connect(plant->get_state_output_port(robot), abb_controller->get_input_port_estimated_state());
-    builder.ExportInput(abb_controller->get_input_port_desired_state(), "irb1200_desired_state");
-
-    builder.ExportInput(plant->get_desired_state_input_port(svh), "svh_desired_state");
-    builder.ExportInput(plant->get_actuation_input_port(svh), "svh_feed_forward_torque");
-    builder.ExportOutput(plant->get_state_output_port(robot), "irb1200_state");
+    builder.Connect(plant->get_state_output_port(robot), abb_controller->get_input_port_estimated_state());    
 
     auto names_raw = plant->GetStateNames(svh);
     std::vector<std::string> names;
@@ -96,8 +91,32 @@ RobotDiagram::RobotDiagram(
         builder.Connect(demux->get_output_port(index(names_raw, names[i])), mux->get_input_port(i));
     }
 
+    auto engine = drake::geometry::MakeRenderEngineGl();
+    scene_graph->AddRenderer("default_renderer", std::move(engine));
+
+    auto cam0 = builder.AddSystem<simulation::OakdS2Camera>(scene_graph, Eigen::Vector3d({1.0, 1.0, 1.0}), Eigen::Vector3d({0.0, 0.0, 0.0}));
+    auto cam1 = builder.AddSystem<simulation::OakdS2Camera>(scene_graph, Eigen::Vector3d({1.0, -1.0, 1.0}), Eigen::Vector3d({0.0, 0.0, 0.0}));
+
+    builder.Connect(scene_graph->get_query_output_port(), cam0->get_input_port());
+    builder.Connect(scene_graph->get_query_output_port(), cam1->get_input_port());
+
+    builder.ExportInput(abb_controller->get_input_port_desired_state(), "irb1200_desired_state");
+    builder.ExportInput(plant->get_desired_state_input_port(svh), "svh_desired_state");
+    builder.ExportInput(plant->get_actuation_input_port(svh), "svh_feed_forward_torque");
+
+    builder.ExportOutput(plant->get_state_output_port(robot), "irb1200_state");
     builder.ExportOutput(mux->get_output_port(), "svh_state");
     builder.ExportOutput(plant->get_net_actuation_output_port(svh), "svh_net_actuation");
+
+    builder.ExportOutput(cam0->GetOutputPort("color_image"), "cam0_color_image");
+    builder.ExportOutput(cam0->GetOutputPort("depth_image_32f"), "cam0_depth_image_32f");
+    builder.ExportOutput(cam0->GetOutputPort("point_cloud"), "cam0_point_cloud");
+    builder.ExportOutput(cam0->GetOutputPort("pose"), "cam0_pose");
+
+    builder.ExportOutput(cam1->GetOutputPort("color_image"), "cam1_color_image");
+    builder.ExportOutput(cam1->GetOutputPort("depth_image_32f"), "cam1_depth_image_32f");
+    builder.ExportOutput(cam1->GetOutputPort("point_cloud"), "cam1_point_cloud");
+    builder.ExportOutput(cam1->GetOutputPort("pose"), "cam1_pose");
 
     drake::visualization::AddDefaultVisualization(&builder, meshcat);
 

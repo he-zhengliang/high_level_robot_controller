@@ -12,6 +12,7 @@ find_package(drake REQUIRED)
 find_package(drake_ros REQUIRED)
 find_package(control_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -35,6 +36,7 @@ ament_target_dependencies(simulation
   rclcpp
   control_msgs
   trajectory_msgs
+  sensor_msgs
 )
 
 install(TARGETS simulation
