@@ -25,10 +25,11 @@
 #include <drake_ros/core/ros_subscriber_system.h>
 #include <drake_ros/core/geometry_conversions.h>
 
-#include <control_msgs/msg/dynamic_joint_state.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 #include <geometry_msgs/msg/pose.hpp>
-
+#include <control_msgs/msg/dynamic_joint_state.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 int main(int argc, char ** argv) {
     (void) argc;
@@ -57,7 +58,11 @@ int main(int argc, char ** argv) {
     );
 
     // ROS2 publisher to output ABB JointStates
-    auto abb_joint_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<control_msgs::msg::DynamicJointState>("/abb_dynamic_joint_states", qos, ros_system->get_ros_interface(), {drake::systems::TriggerType::kPeriodic}, 0.02));
+    auto abb_joint_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<sensor_msgs::msg::JointState>("/abb_dynamic_joint_states", qos, ros_system->get_ros_interface(), {drake::systems::TriggerType::kPeriodic}, 0.02));
+
+    // Point cloud outputs
+    auto cam0_pc_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<sensor_msgs::msg::PointCloud2>("/cam0_point_cloud", qos, ros_system->get_ros_interface(), {drake::systems::TriggerType::kForced}));
+    auto cam1_pc_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<sensor_msgs::msg::PointCloud2>("/cam1_point_cloud", qos, ros_system->get_ros_interface(), {drake::systems::TriggerType::kForced}));
 
     // ROS2 subscriber to get the input svh desired trajectory
     auto joint_trajectory = builder.AddSystem(drake_ros::core::RosSubscriberSystem::Make<trajectory_msgs::msg::JointTrajectory>("/left_hand/joint_trajectory", qos, ros_system->get_ros_interface()));
@@ -87,7 +92,7 @@ int main(int argc, char ** argv) {
     builder.Connect(system->GetOutputPort("svh_net_actuation"), djsmc->get_input_port(1));
     builder.Connect(djsmc->get_output_port(), joint_output->get_input_port());
 
-    auto abb_djsmc = builder.AddSystem<AbbDynamicJointStateMessageCreator>();
+    auto abb_djsmc = builder.AddSystem<AbbJointStateMessageCreator>();
     builder.Connect(system->GetOutputPort("irb1200_state"), abb_djsmc->get_input_port(0));
     builder.Connect(abb_djsmc->get_output_port(), abb_joint_output->get_input_port(0));
 
@@ -99,6 +104,14 @@ int main(int argc, char ** argv) {
     builder.Connect(system->GetOutputPort("svh_state"), svh_state_logger->get_input_port());
     auto svh_input_logger = builder.AddSystem<drake::systems::VectorLogSink<double>>(18);
     builder.Connect(svh_motion_planner->get_output_port(), svh_input_logger->get_input_port());
+
+    auto pc0 = builder.AddSystem<PointCloudMessageCreator>(false);
+    auto pc1 = builder.AddSystem<PointCloudMessageCreator>(false);
+
+    builder.Connect(system->GetOutputPort("cam0_point_cloud"), pc0->get_input_port());
+    builder.Connect(system->GetOutputPort("cam1_point_cloud"), pc1->get_input_port());
+    builder.Connect(pc0->get_output_port(), cam0_pc_output->get_input_port());
+    builder.Connect(pc1->get_output_port(), cam1_pc_output->get_input_port());
 
     auto diagram = builder.Build();
 

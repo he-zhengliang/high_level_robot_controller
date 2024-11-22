@@ -1,6 +1,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/pose.hpp>
-#include <control_msgs/msg/dynamic_joint_state.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
 #include <thread>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -12,12 +12,11 @@
 #define UDP_SERVER_PORT 3842
 #define TCP_CLIENT_PORT 5555
 
+std::atomic_bool stop_threads = false;
+
 class AbbRos2Driver : public rclcpp::Node {
 public:
-  explicit AbbRos2Driver() : Node("abb_ros2_driver") {
-    stop_threads_ = false;
-    
-    // publisher_ = this->create_publisher<control_msgs::msg::DynamicJointState>("/abb_dynamic_joint_states", 10);
+  explicit AbbRos2Driver() : Node("abb_ros2_driver") {    
     subscription_ = this->create_subscription<geometry_msgs::msg::Pose>("/abb_irb1200/ee_pose", 10, std::bind(&AbbRos2Driver::subscription_callback, this, std::placeholders::_1));
 
     udp_thread_ = std::thread(&AbbRos2Driver::udp_read, this);
@@ -61,7 +60,7 @@ public:
   ~AbbRos2Driver() {
     close(tcp_sockfd_);
     close(tcp_connected_sockfd_);
-    stop_threads_ = true;
+    stop_threads = true;
     udp_thread_.join();
   }
 
@@ -82,8 +81,7 @@ private:
   }
 
   void udp_read() {
-    printf("started\n");
-    publisher_ = this->create_publisher<control_msgs::msg::DynamicJointState>("/abb_dynamic_joint_states", 10);
+    publisher_ = this->create_publisher<sensor_msgs::msg::JointState>("/abb_dynamic_joint_states", 10);
     int sockfd;
     struct sockaddr_in udp_server_addr, udp_client_addr;
     socklen_t udp_client_len = sizeof(udp_client_addr);
@@ -106,8 +104,9 @@ private:
     }
 
     char buffer[1024];
+    const std::vector<std::string> joint_names = {"1", "2", "3", "4", "5", "6"};
 
-    while (! stop_threads_) {
+    while (! stop_threads) {
       ssize_t recieved_bytes = recvfrom(sockfd, buffer, sizeof(buffer), 0, reinterpret_cast<sockaddr*>(&udp_client_addr), &udp_client_len);
       if (recieved_bytes < 0) {
         perror("Recieved an invalid message");
@@ -120,24 +119,19 @@ private:
         int num_joints = msg.feedback().joints().joints_size();
         auto joint_pos = std::vector<double>(msg.feedback().joints().joints().begin(), msg.feedback().joints().joints().end());
 
-        control_msgs::msg::DynamicJointState msg_out;
+        sensor_msgs::msg::JointState msg_out;
         msg_out.header.set__frame_id("Helolo");
         msg_out.header.set__stamp(this->now());
 
-        msg_out.set__joint_names({"1", "2", "3", "4", "5", "6"});
-        msg_out.interface_values.resize(num_joints);
-        for (int i = 0; i < num_joints; i++) {
-          msg_out.interface_values[i].set__interface_names({"position"});
-          msg_out.interface_values[i].set__values({joint_pos[i]});
-        }
+        msg_out.set__name(joint_names);
+        msg_out.set__position(joint_pos);
 
         publisher_->publish(msg_out);
       }
     }
   }
 
-  std::atomic<bool> stop_threads_;
-  rclcpp::Publisher<control_msgs::msg::DynamicJointState>::SharedPtr publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_;
   rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr subscription_;
   std::thread udp_thread_;
 
