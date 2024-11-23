@@ -25,7 +25,9 @@ cd drake-ros-ws/src
 git clone https://github.com/robotlocomotion/drake-ros.git
 cd ..
 
-# Download all the packages required for building the package using rosdep. rosdep may have some required setup steps if you haven't used it yet. If so the following command should guide you through the required setup steps
+# Download all the packages required for building the package using rosdep
+# rosdep may have some required setup steps if you haven't used it yet
+# If so the following command should guide you through the required setup steps
 rosdep install --from-paths src -ryi
 
 # Build the package using colcon with Release build type
@@ -55,6 +57,8 @@ colcon build
 # Source the workspace so ros2 commands can find the required packages
 source install/local_setup.bash
 ```
-5. (TODO) Run the controller using the "" launch script
-	$ros2 launch controller ""
-	Use the simulation:=true to start the simulation but omit it if the actual robot is on and ready to run
+6. Run any of the following applications
+```bash
+ros2 run simulation simulation
+ros2 run abb_ros2_driver abb_ros2_driver
+```
