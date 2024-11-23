@@ -87,12 +87,12 @@ int main(int argc, char ** argv) {
     builder.Connect(svh_motion_planner->get_output_port(), system->GetInputPort("svh_desired_state"));
     builder.Connect(system->GetOutputPort("svh_state"), svh_motion_planner->get_input_port(1));
 
-    auto djsmc = builder.AddSystem<SvhDynamicJointStateMessageCreator>();
+    auto djsmc = builder.AddSystem<simulation::SvhDynamicJointStateMessageCreator>();
     builder.Connect(system->GetOutputPort("svh_state"), djsmc->get_input_port(0));
     builder.Connect(system->GetOutputPort("svh_net_actuation"), djsmc->get_input_port(1));
     builder.Connect(djsmc->get_output_port(), joint_output->get_input_port());
 
-    auto abb_djsmc = builder.AddSystem<AbbJointStateMessageCreator>();
+    auto abb_djsmc = builder.AddSystem<simulation::AbbJointStateMessageCreator>();
     builder.Connect(system->GetOutputPort("irb1200_state"), abb_djsmc->get_input_port(0));
     builder.Connect(abb_djsmc->get_output_port(), abb_joint_output->get_input_port(0));
 
@@ -105,8 +105,8 @@ int main(int argc, char ** argv) {
     auto svh_input_logger = builder.AddSystem<drake::systems::VectorLogSink<double>>(18);
     builder.Connect(svh_motion_planner->get_output_port(), svh_input_logger->get_input_port());
 
-    auto pc0 = builder.AddSystem<PointCloudMessageCreator>(false);
-    auto pc1 = builder.AddSystem<PointCloudMessageCreator>(false);
+    auto pc0 = builder.AddSystem<simulation::PointCloudMessageCreator>(false);
+    auto pc1 = builder.AddSystem<simulation::PointCloudMessageCreator>(false);
 
     builder.Connect(system->GetOutputPort("cam0_point_cloud"), pc0->get_input_port());
     builder.Connect(system->GetOutputPort("cam1_point_cloud"), pc1->get_input_port());

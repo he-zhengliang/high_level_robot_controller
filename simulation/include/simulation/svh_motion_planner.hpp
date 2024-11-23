@@ -1,3 +1,6 @@
+#ifndef SIMULATION__SVH_MOTION_PLANNER_HPP
+#define SIMULATION__SVH_MOTION_PLANNER_HPP
+
 #include <drake/systems/framework/leaf_system.h>
 
 namespace simulation {
@@ -14,4 +17,6 @@ private:
     drake::systems::AbstractStateIndex nano_state_idx;
     drake::systems::AbstractStateIndex traj_state_idx;
 };
-}
+};
+
+#endif

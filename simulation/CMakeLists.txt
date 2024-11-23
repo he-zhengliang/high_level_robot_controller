@@ -23,6 +23,8 @@ add_executable(simulation
   src/abb_motion_planner.cpp
   src/svh_motion_planner.cpp
   src/oakd_s2_camera.cpp
+  src/package_path.cpp
+  src/ros_message_creator.cpp
 )
 target_include_directories(simulation PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

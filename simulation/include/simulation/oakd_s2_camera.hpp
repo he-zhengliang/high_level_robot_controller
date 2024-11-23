@@ -1,3 +1,6 @@
+#ifndef SIMULATION__OAKD_S2_CAMERA_HPP
+#define SIMULATION__OAKD_S2_CAMERA_HPP
+
 #include <drake/systems/framework/diagram.h>
 #include <drake/geometry/scene_graph.h>
 
@@ -10,4 +13,6 @@ private:
     static inline drake::math::RigidTransformd get_camera_pose(const Eigen::Vector3d& camera_position, const Eigen::Vector3d& focus_point);
 };
 
-}
+};
+
+#endif
