@@ -136,7 +136,10 @@ int main(int argc, char ** argv) {
 
     meshcat->StartRecording();
 
-    sim.AdvanceTo(10.0);
+    while (true) {
+        sim.AdvanceTo(0.1);
+    }
+    
     auto pc = system->GetOutputPort("cam0_point_cloud").Eval<drake::perception::PointCloud>(system->GetMyContextFromRoot(sim.get_context()));
     meshcat->SetObject("aaah", pc);
     meshcat->SetTransform("aaah", system->GetOutputPort("cam0_pose").Eval<drake::math::RigidTransformd>(system->GetMyContextFromRoot(sim.get_context())).inverse());

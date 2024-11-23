@@ -76,11 +76,11 @@ namespace simulation {
         }
 
         auto goal = drake_ros::core::RosPoseToRigidTransform(goal_ros2);
-        
+
         auto& mutable_abstract_state = state->get_mutable_abstract_state();
         auto& mutable_context = mutable_abstract_state.get_mutable_value(0).get_mutable_value<drake::systems::Context<double>>();
         this->plant_.SetPositionsAndVelocities(&mutable_context, this->GetInputPort("irb1200_estimated_state").Eval(context));
-        
+
         auto q0 = this->plant_.GetPositions(mutable_context);
         auto initial = this->plant_.GetBodyByName("gripper_frame").body_frame().CalcPoseInWorld(mutable_context);
 
