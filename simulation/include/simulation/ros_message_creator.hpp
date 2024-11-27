@@ -2,7 +2,6 @@
 #define SIMULATION__ROS_MESSAGE_CREATOR_HPP
 
 #include <drake/systems/framework/leaf_system.h>
-#include <control_msgs/msg/dynamic_joint_state.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <drake/perception/point_cloud.h>
@@ -24,11 +23,11 @@ public:
     bool colored_;
 };
 
-class SvhDynamicJointStateMessageCreator : public drake::systems::LeafSystem<double> {
+class SvhJointStateMessageCreator : public drake::systems::LeafSystem<double> {
 public:
-    explicit SvhDynamicJointStateMessageCreator();
+    explicit SvhJointStateMessageCreator();
 private:
-    void create_message(const drake::systems::Context<double>& context, control_msgs::msg::DynamicJointState* message) const;
+    void create_message(const drake::systems::Context<double>& context, sensor_msgs::msg::JointState* message) const;
 
     const std::vector<std::string> names =  {
         "Left_Hand_Thumb_Opposition",

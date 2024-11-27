@@ -16,12 +16,14 @@ private:
     void state_output_callback(const drake::systems::Context<double>& context, drake::systems::BasicVector<double>* output) const;
     void udp_read();
     inline void tcp_connect();
+    drake::systems::EventStatus periodic_publish(const drake::systems::Context<double>& context) const;
+    drake::systems::EventStatus ee_publish(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const;
 
-    std::atomic<Eigen::Vector<double, 6>> thread_safe_state_;
+    std::mutex state_mutex_;
+    Eigen::Vector<double, 6> thread_safe_state_;
     std::thread udp_thread_;
 
     int tcp_sockfd_;
-    int tcp_connected_sockfd_;
 };
 
 }

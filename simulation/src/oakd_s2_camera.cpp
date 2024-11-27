@@ -77,6 +77,7 @@ namespace simulation {
 
         builder.ExportOutput(cam->GetOutputPort("color_image"), "color_image");
         builder.ExportOutput(cam->GetOutputPort("depth_image_32f"), "depth_image_32f");
+        builder.ExportOutput(cam->GetOutputPort("label_image"), "label_image");
         builder.ExportOutput(im_to_pc->get_output_port(), "point_cloud");
         builder.ExportOutput(cam->body_pose_in_world_output_port(), "pose");
 

@@ -36,7 +36,6 @@ target_link_libraries(simulation
 )
 ament_target_dependencies(simulation
   rclcpp
-  control_msgs
   trajectory_msgs
   sensor_msgs
 )
