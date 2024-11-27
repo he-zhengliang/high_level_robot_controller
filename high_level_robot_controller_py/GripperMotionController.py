@@ -4,6 +4,8 @@ from pydrake.common.value import AbstractValue # type: ignore
 from pydrake.math import RigidTransform
 from pydrake.perception import PointCloud
 
+"""Template class for controlling the Schunk SVH
+"""
 class GripperMotionController(LeafSystem):
     def __init__(self):
         super().__init__()
