@@ -26,7 +26,6 @@ AbbDriver::AbbDriver() : thread_safe_state_{0.0, 0.0, 0.0, 0.0, 0.0, 0.0} {
     this->DeclareAbstractInputPort("ee_pose", *drake::AbstractValue::Make(drake::math::RigidTransformd()));
     
     this->DeclareVectorOutputPort("position", 6, &AbbDriver::state_output_callback);
-    this->DeclarePeriodicPublishEvent(0.5, 0.0, &AbbDriver::periodic_publish);
 
     this->DeclareAbstractState(*drake::AbstractValue::Make(drake::math::RigidTransformd()));
     this->DeclarePerStepUnrestrictedUpdateEvent(&AbbDriver::ee_publish);
@@ -46,10 +45,6 @@ AbbDriver::~AbbDriver() {
     std::this_thread::sleep_for(std::chrono::microseconds(500));
 
     close(tcp_sockfd_);
-}
-
-drake::systems::EventStatus AbbDriver::periodic_publish(const drake::systems::Context<double>& context) const {
-    return drake::systems::EventStatus::Succeeded();
 }
 
 drake::systems::EventStatus AbbDriver::ee_publish(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const {

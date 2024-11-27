@@ -91,4 +91,10 @@ ament_export_targets(
   export_${PROJECT_NAME}
 )
 
+ament_export_dependencies(trajectory_msgs)
+ament_export_dependencies(control_msgs)
+ament_export_dependencies(std_msgs)
+ament_export_dependencies(drake_ros)
+ament_export_dependencies(drake)
+
 ament_package()

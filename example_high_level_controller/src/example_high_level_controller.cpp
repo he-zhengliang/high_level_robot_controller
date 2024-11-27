@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+
 #include <drake/systems/framework/diagram_builder.h>
 #include <drake/systems/primitives/vector_log_sink.h>
 #include <drake/systems/primitives/constant_value_source.h>
@@ -6,12 +8,16 @@
 #include <drake/systems/analysis/simulator.h>
 #include <abb_driver/abb_driver.hpp>
 
+#include <drake_ros2_interface/drake_ros2_interface.hpp>
+
 int main(int argc, char ** argv) {
   int in;
   auto builder = drake::systems::DiagramBuilder<double>();
+
+  builder.AddSystem<drake_ros2_interface::DrakeRos2Interface>(0.02);
   auto abb_driver = builder.AddSystem<controller::AbbDriver>();
 
-  auto sink = builder.AddSystem<drake::systems::VectorLogSink<double>>(6);
+  auto sink = builder.AddSystem<drake::systems::VectorLogSink<double>>(6, 0.001);
   auto source = builder.AddSystem<drake::systems::ConstantValueSource<double>>(
     *drake::AbstractValue::Make(
       drake::math::RigidTransformd(
@@ -36,6 +42,27 @@ int main(int argc, char ** argv) {
 
   sim.set_target_realtime_rate(1.0);
   sim.AdvanceTo(10.0);
+
+  {
+    std::ofstream file;
+    file.open("/home/alexm/simulation_logs/abb_network_log.txt");
+    if (file.is_open()) {
+      auto abb_state_log = sink->GetLog(sink->GetMyContextFromRoot(sim.get_context()));
+      file 
+      << "<abb_state>"
+          << "<input_size>" << abb_state_log.get_input_size() << "</input_size>"
+          << "<num_samples>" << abb_state_log.num_samples() << "</num_samples>"
+          << "<sample_times>" << abb_state_log.sample_times() << "</sample_times>"
+          << "<data>" << abb_state_log.data() << "</data>"
+      << "</abb_state>"
+      ;
+      std::cout << "Wrote to file '" << "abb_network_log.txt" << "'\n";
+      file.close();
+    } else {
+	    std::cout << "Failed to open abb log file '" << "abb_network_log.txt" << "'\n";
+    }
+  }
+
 
   return 0;
 }
