@@ -73,7 +73,7 @@ RobotDiagram::RobotDiagram(
     auto abb_controller = RobotDiagram::abb_inverse_dynamics_controller(builder);
 
     builder.Connect(abb_controller->get_output_port(), plant->get_actuation_input_port(robot));
-    builder.Connect(plant->get_state_output_port(robot), abb_controller->get_input_port_estimated_state());    
+    builder.Connect(plant->get_state_output_port(robot), abb_controller->get_input_port_estimated_state());
 
     auto names_raw = plant->GetStateNames(svh);
     std::vector<std::string> names;
@@ -111,11 +111,13 @@ RobotDiagram::RobotDiagram(
     builder.ExportOutput(cam0->GetOutputPort("color_image"), "cam0_color_image");
     builder.ExportOutput(cam0->GetOutputPort("depth_image_32f"), "cam0_depth_image_32f");
     builder.ExportOutput(cam0->GetOutputPort("point_cloud"), "cam0_point_cloud");
+    builder.ExportOutput(cam0->GetOutputPort("label_image"), "cam0_label_image");
     builder.ExportOutput(cam0->GetOutputPort("pose"), "cam0_pose");
 
     builder.ExportOutput(cam1->GetOutputPort("color_image"), "cam1_color_image");
     builder.ExportOutput(cam1->GetOutputPort("depth_image_32f"), "cam1_depth_image_32f");
     builder.ExportOutput(cam1->GetOutputPort("point_cloud"), "cam1_point_cloud");
+    builder.ExportOutput(cam1->GetOutputPort("label_image"), "cam1_label_image");
     builder.ExportOutput(cam1->GetOutputPort("pose"), "cam1_pose");
 
     drake::visualization::AddDefaultVisualization(&builder, meshcat);

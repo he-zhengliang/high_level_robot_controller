@@ -27,7 +27,6 @@
 
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 #include <geometry_msgs/msg/pose.hpp>
-#include <control_msgs/msg/dynamic_joint_state.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
@@ -48,7 +47,7 @@ int main(int argc, char ** argv) {
 
     // ROS2 publisher to output SVH DynamicJointStates  
     auto joint_output = builder.AddSystem(
-        drake_ros::core::RosPublisherSystem::Make<control_msgs::msg::DynamicJointState>(
+        drake_ros::core::RosPublisherSystem::Make<sensor_msgs::msg::JointState>(
             "/dynamic_joint_states", 
             qos, 
             ros_system->get_ros_interface(),
@@ -77,8 +76,10 @@ int main(int argc, char ** argv) {
     auto svh_motion_planner = builder.AddSystem<simulation::SvhMotionPlanner>();
     builder.Connect(joint_trajectory->get_output_port(), svh_motion_planner->get_input_port(0));
     
-    // Add RobotDiagram system which contains all of the multibody simulation and low level controllers
+    // Path world.sdf
     auto world_sdf_location = simulation::package_path::get_package_share_path("simulation") + std::string("world/world.sdf");
+
+    // Add RobotDiagram system which contains all of the multibody simulation and low level controllers
     auto system = builder.AddSystem<simulation::RobotDiagram>(0.002, meshcat, false, std::vector<std::string>{world_sdf_location});
 
     builder.Connect(abb_motion_planner->get_output_port(), system->GetInputPort("irb1200_desired_state"));
@@ -87,7 +88,7 @@ int main(int argc, char ** argv) {
     builder.Connect(svh_motion_planner->get_output_port(), system->GetInputPort("svh_desired_state"));
     builder.Connect(system->GetOutputPort("svh_state"), svh_motion_planner->get_input_port(1));
 
-    auto djsmc = builder.AddSystem<simulation::SvhDynamicJointStateMessageCreator>();
+    auto djsmc = builder.AddSystem<simulation::SvhJointStateMessageCreator>();
     builder.Connect(system->GetOutputPort("svh_state"), djsmc->get_input_port(0));
     builder.Connect(system->GetOutputPort("svh_net_actuation"), djsmc->get_input_port(1));
     builder.Connect(djsmc->get_output_port(), joint_output->get_input_port());
@@ -137,12 +138,17 @@ int main(int argc, char ** argv) {
     meshcat->StartRecording();
 
     while (true) {
-        sim.AdvanceTo(0.1);
+        sim.AdvanceTo(sim.get_context().get_time() + 2.0);
+        break;
     }
     
-    auto pc = system->GetOutputPort("cam0_point_cloud").Eval<drake::perception::PointCloud>(system->GetMyContextFromRoot(sim.get_context()));
+    drake::perception::PointCloud pc_eval_0 = system->GetOutputPort("cam0_point_cloud").Eval<drake::perception::PointCloud>(system->GetMyContextFromRoot(sim.get_context()));
+    drake::perception::PointCloud pc_eval_1 = system->GetOutputPort("cam1_point_cloud").Eval<drake::perception::PointCloud>(system->GetMyContextFromRoot(sim.get_context()));
+    auto pc = drake::perception::Concatenate({pc_eval_0, pc_eval_1}).VoxelizedDownSample(0.01, 8);
+
     meshcat->SetObject("aaah", pc);
-    meshcat->SetTransform("aaah", system->GetOutputPort("cam0_pose").Eval<drake::math::RigidTransformd>(system->GetMyContextFromRoot(sim.get_context())).inverse());
+    meshcat->SetTransform("aaah", drake::math::RigidTransformd());//system->GetOutputPort("cam0_pose").Eval<drake::math::RigidTransformd>(system->GetMyContextFromRoot(sim.get_context())));
+    meshcat->SetTransform("aa", drake::math::RigidTransformd());//system->GetOutputPort("cam0_pose").Eval<drake::math::RigidTransformd>(system->GetMyContextFromRoot(sim.get_context())));
     meshcat->PublishRecording();
 
     {
@@ -208,17 +214,4 @@ int main(int argc, char ** argv) {
     std::cout << "Reached End\n";
     int x;
     std::cin >> x;
-
-    /*
-    while (true) {
-        auto time = sim.get_context().get_time();
-        auto result = sim.AdvanceTo(time + 1.0);
-    }*/
 }
-
-    /* Test rigid transform
-    auto X_WG = drake::math::RigidTransformd(
-        drake::math::RotationMatrixd::MakeXRotation(M_PIf64) * drake::math::RotationMatrixd::MakeYRotation(M_PI_2f64), 
-        Eigen::Vector3d{0.6, 0.05, 0.05}
-    );
-    */

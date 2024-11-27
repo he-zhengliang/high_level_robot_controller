@@ -39,24 +39,22 @@ void PointCloudMessageCreator::calc_output(const drake::systems::Context<double>
     output->is_dense = true;
 }
 
-SvhDynamicJointStateMessageCreator::SvhDynamicJointStateMessageCreator() {
+SvhJointStateMessageCreator::SvhJointStateMessageCreator() {
     this->DeclareVectorInputPort("svh_state", 18);
     this->DeclareVectorInputPort("svh_effort", 9);
-    this->DeclareAbstractOutputPort("dynamic_joint_state_message", &SvhDynamicJointStateMessageCreator::create_message);
+    this->DeclareAbstractOutputPort("dynamic_joint_state_message", &SvhJointStateMessageCreator::create_message);
 }
 
-void SvhDynamicJointStateMessageCreator::create_message(const drake::systems::Context<double>& context, control_msgs::msg::DynamicJointState* message) const {
+void SvhJointStateMessageCreator::create_message(const drake::systems::Context<double>& context, sensor_msgs::msg::JointState* message) const {
     auto state = this->get_input_port(0).Eval(context);
     auto effort = this->get_input_port(1).Eval(context);
 
-    *message = control_msgs::msg::DynamicJointState();
-    message->joint_names = names;
+    *message = sensor_msgs::msg::JointState();
+    message->name = names;
 
-    message->interface_values.resize(9);
-    for (int i = 0; i < 9; i++) {
-        message->interface_values[i].interface_names = {"position", "velocity", "effort", "current"};
-        message->interface_values[i].values = {state(i), state(i+9), effort(i), 0.0};
-    }
+    message->position = std::vector<double>(state.begin(), state.begin()+6);
+    message->velocity = std::vector<double>(state.begin()+6, state.end());
+    message->effort = std::vector<double>(effort.begin(), effort.end());
 }
 
 AbbJointStateMessageCreator::AbbJointStateMessageCreator() {
