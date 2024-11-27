@@ -17,9 +17,11 @@ private:
     void udp_read();
     inline void tcp_connect();
     drake::systems::EventStatus ee_publish(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const;
+    drake::systems::EventStatus get_time_offset(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const;
 
     std::mutex state_mutex_;
     Eigen::Vector<double, 6> thread_safe_state_;
+    double thread_safe_time_;
     std::thread udp_thread_;
 
     int tcp_sockfd_;

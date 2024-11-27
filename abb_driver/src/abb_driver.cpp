@@ -21,7 +21,9 @@ namespace controller {
 std::mutex state_mutex;
 std::atomic_bool stop_threads = false;
 
-AbbDriver::AbbDriver() : thread_safe_state_{0.0, 0.0, 0.0, 0.0, 0.0, 0.0} {
+AbbDriver::AbbDriver() : 
+    thread_safe_state_{0.0, 0.0, 0.0, 0.0, 0.0, 0.0}, 
+    thread_safe_time_(0.0) {
     
     this->DeclareAbstractInputPort("ee_pose", *drake::AbstractValue::Make(drake::math::RigidTransformd()));
     
@@ -127,7 +129,11 @@ void AbbDriver::udp_read() {
             int num_joints = msg.feedback().joints().joints_size();
             auto joint_pos = std::vector<double>(msg.feedback().joints().joints().begin(), msg.feedback().joints().joints().end());
             state_mutex.lock();
-            thread_safe_state_ = Eigen::Map<Eigen::VectorXd>((double*) msg.feedback().joints().joints().begin(), num_joints);
+            double msg_time = ((double)msg.header().tm()) / 1000.0;
+            if (msg_time > thread_safe_time_) {
+                thread_safe_state_ = Eigen::Map<Eigen::VectorXd>((double*) msg.feedback().joints().joints().begin(), num_joints);
+                thread_safe_time_ = msg_time;
+            }
             state_mutex.unlock();
         }
     }

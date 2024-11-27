@@ -14,7 +14,7 @@ int main(int argc, char ** argv) {
   int in;
   auto builder = drake::systems::DiagramBuilder<double>();
 
-  builder.AddSystem<drake_ros2_interface::DrakeRos2Interface>(0.02);
+  // builder.AddSystem<drake_ros2_interface::DrakeRos2Interface>(0.02);
   auto abb_driver = builder.AddSystem<controller::AbbDriver>();
 
   auto sink = builder.AddSystem<drake::systems::VectorLogSink<double>>(6, 0.001);
