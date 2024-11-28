@@ -86,6 +86,8 @@ drake::systems::EventStatus AbbDriver::ee_publish(const drake::systems::Context<
 }
 
 void AbbDriver::state_output_callback(const drake::systems::Context<double>& context, drake::systems::BasicVector<double>* output) const {
+    (void) context;
+
     state_mutex.lock();
     output->get_mutable_value() = this->thread_safe_state_;
     state_mutex.unlock();

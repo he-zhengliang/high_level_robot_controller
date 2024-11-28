@@ -35,6 +35,8 @@ RobotDiagram::RobotDiagram(
     const std::vector<std::string>& models_to_add,
     BaseField pc_fields
 ) {
+    (void) pc_fields;
+    
     auto builder = drake::systems::DiagramBuilder<double>();
 
     DRAKE_ASSERT(sim_time_step > 0);

@@ -62,7 +62,6 @@ namespace simulation {
         auto camera_pose = this->get_camera_pose(camera_position, focus_point);
 
         auto cam = builder.AddSystem<drake::systems::sensors::RgbdSensor>(scene_graph->world_frame_id(), camera_pose, color_camera, depth_camera);
-        const auto a = drake::geometry::SceneGraph<double>().get_query_output_port().get_data_type();
 
         builder.ExportInput(cam->get_input_port());
 

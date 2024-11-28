@@ -30,22 +30,19 @@
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
-int main(int argc, char ** argv) {
-    (void) argc;
-    (void) argv;
-
+int main() {
     // Meshcat Instance
     auto meshcat = std::make_shared<drake::geometry::Meshcat>();
 
     // Drake DiagramBuilder to connect all the systems
     auto builder = drake::systems::DiagramBuilder<double>();
 
-    // Drake ROS2 Node
+    // Drake ROS2 Node for modelling the Schunk SVH controller
     rclcpp::QoS qos{10};
     drake_ros::core::init();
     auto ros_system = builder.AddSystem<drake_ros::core::RosInterfaceSystem>(std::make_unique<drake_ros::core::DrakeRos>("simulator_node"));
 
-    // ROS2 publisher to output SVH DynamicJointStates  
+    // ROS2 publisher to output SVH JointStates  
     auto joint_output = builder.AddSystem(
         drake_ros::core::RosPublisherSystem::Make<sensor_msgs::msg::JointState>(
             "/dynamic_joint_states", 
@@ -56,21 +53,21 @@ int main(int argc, char ** argv) {
         )
     );
 
-    // ROS2 publisher to output ABB JointStates
+    // ROS2 publisher to output ABB JointStates (TODO: Replace with a udp publisher with abb egm Protobuf spec)
     auto abb_joint_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<sensor_msgs::msg::JointState>("/abb_dynamic_joint_states", qos, ros_system->get_ros_interface(), {drake::systems::TriggerType::kPeriodic}, 0.02));
 
-    // Point cloud outputs
+    // Point cloud outputs (TODO: replace with a more accurate version?)
     auto cam0_pc_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<sensor_msgs::msg::PointCloud2>("/cam0_point_cloud", qos, ros_system->get_ros_interface(), {drake::systems::TriggerType::kForced}));
     auto cam1_pc_output = builder.AddSystem(drake_ros::core::RosPublisherSystem::Make<sensor_msgs::msg::PointCloud2>("/cam1_point_cloud", qos, ros_system->get_ros_interface(), {drake::systems::TriggerType::kForced}));
 
     // ROS2 subscriber to get the input svh desired trajectory
     auto joint_trajectory = builder.AddSystem(drake_ros::core::RosSubscriberSystem::Make<trajectory_msgs::msg::JointTrajectory>("/left_hand/joint_trajectory", qos, ros_system->get_ros_interface()));
     
-    // ROS2 subscriber to get the desired end effector pose
+    // ROS2 subscriber to get the desired end effector pose (TODO: Replace with a tcp client that messages the controller server)
     auto ee_pose = builder.AddSystem(drake_ros::core::RosSubscriberSystem::Make<geometry_msgs::msg::Pose>("/abb_irb1200/ee_pose", qos, ros_system->get_ros_interface()));
 
     // Add ABB Motion Planner which takes a pose and gives commands to the ABB to interpolate between the current point and the target point
-    auto abb_motion_planner = builder.AddSystem<simulation::AbbMotionPlanner>(0.3);
+    auto abb_motion_planner = builder.AddSystem<simulation::AbbMotionPlanner>("172.22.78.115");
 
     // Add Svh Motion Planner which takes a joint trajectory and converts it to a smoothly interpolated signal for the SVH motors
     auto svh_motion_planner = builder.AddSystem<simulation::SvhMotionPlanner>();

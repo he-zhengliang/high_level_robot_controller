@@ -13,9 +13,11 @@ find_package(drake_ros REQUIRED)
 find_package(control_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(Protobuf REQUIRED)
+
+include_directories(${Protobuf_INCLUDE_DIRS})
+set(PROTO_SRC egm/egm.pb.cc)
+set(PROTO_HDR egm/egm.pb.h)
 
 add_executable(simulation 
   src/simulation.cpp 
@@ -25,15 +27,23 @@ add_executable(simulation
   src/oakd_s2_camera.cpp
   src/package_path.cpp
   src/ros_message_creator.cpp
+  ${PROTO_SRC}
 )
 target_include_directories(simulation PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
+
+target_include_directories(simulation PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/egm>
+  $<INSTALL_INTERFACE:egm>)
+
 target_compile_features(simulation PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 target_link_libraries(simulation
   drake::drake
   drake_ros::drake_ros_core
+  ${Protobuf_LIBRARIES}
 )
+
 ament_target_dependencies(simulation
   rclcpp
   trajectory_msgs

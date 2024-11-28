@@ -68,13 +68,13 @@ private:
   void subscription_callback(const geometry_msgs::msg::Pose::SharedPtr msg) const {
     RCLCPP_INFO(this->get_logger(), "position (%f, %f, %f)  orientation (%f, %f, %f, %f)", msg->position.x, msg->position.y, msg->position.z, msg->orientation.w, msg->orientation.x, msg->orientation.y, msg->orientation.z);
     float abb_msg_buffer[7] = {
-      msg->position.x, 
-      msg->position.y, 
-      msg->position.z, 
-      msg->orientation.w, 
-      msg->orientation.x, 
-      msg->orientation.y, 
-      msg->orientation.z
+      (float) msg->position.x, 
+      (float) msg->position.y, 
+      (float) msg->position.z, 
+      (float) msg->orientation.w, 
+      (float) msg->orientation.x, 
+      (float) msg->orientation.y, 
+      (float) msg->orientation.z
     };
 
     send(tcp_connected_sockfd_, abb_msg_buffer, sizeof(abb_msg_buffer), 0);
@@ -116,7 +116,6 @@ private:
       abb::egm::EgmRobot msg;
       msg.ParseFromArray(buffer, recieved_bytes);
       if (msg.has_feedback() && msg.feedback().has_joints()) {
-        int num_joints = msg.feedback().joints().joints_size();
         auto joint_pos = std::vector<double>(msg.feedback().joints().joints().begin(), msg.feedback().joints().joints().end());
 
         sensor_msgs::msg::JointState msg_out;

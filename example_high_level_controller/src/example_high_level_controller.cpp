@@ -10,7 +10,7 @@
 
 #include <drake_ros2_interface/drake_ros2_interface.hpp>
 
-int main(int argc, char ** argv) {
+int main() {
   int in;
   auto builder = drake::systems::DiagramBuilder<double>();
 
