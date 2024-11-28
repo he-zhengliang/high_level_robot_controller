@@ -1,6 +1,7 @@
 # High Level Robot Controller
 
 This is a collection of packages for connecting with and simulating a robot a Schunk SVH gripper and ABB IRB1200 based on Drake and uses ROS2 as a messaging system and Colcon as a build system.
+command: wsl --install Ubuntu-22.04
 
 ## Installation and Setup
 
