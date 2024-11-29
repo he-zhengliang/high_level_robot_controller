@@ -4,7 +4,7 @@ This is a collection of packages for connecting with and simulating a robot a Sc
 
 ## Installation and Setup
 
-Note: Only works on operating systems supported by Drake and ROS2 (Ubuntu 22.04, Ubuntu 24.04)
+Note: Only works on operating systems supported by Drake and ROS2 (Ubuntu 22.04, Ubuntu 24.04); command: wsl --install Ubuntu-22.04
 
 1. Ensure that Drake is installed globally and is on PATH. See the [Drake Installation Page](https://drake.mit.edu/apt.html#stable-releases) for more information.
 
@@ -28,10 +28,13 @@ cd ..
 # Download all the packages required for building the package using rosdep
 # rosdep may have some required setup steps if you haven't used it yet
 # If so the following command should guide you through the required setup steps
+# before install the dependance initialize your rosdep and Recommended: please run rosdep update
+sudo rosdep init
+rosdep update
 rosdep install --from-paths src -ryi
 
 # Build the package using colcon with Release build type
-colcon build -DCMAKE_BUILD_TYPE=Release
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # Source the drake-ros workspace so other packages can reference it
 source install/local_setup.bash
