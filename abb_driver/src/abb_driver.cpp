@@ -21,8 +21,8 @@ namespace controller {
 std::mutex state_mutex;
 std::atomic_bool stop_threads = false;
 
-AbbDriver::AbbDriver() : 
-    thread_safe_state_{0.0, 0.0, 0.0, 0.0, 0.0, 0.0}, 
+AbbDriver::AbbDriver() :
+    thread_safe_state_{0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
     thread_safe_time_(0.0) {
     
     this->DeclareAbstractInputPort("ee_pose", *drake::AbstractValue::Make(drake::math::RigidTransformd()));
@@ -30,18 +30,48 @@ AbbDriver::AbbDriver() :
     this->DeclareVectorOutputPort("position", 6, &AbbDriver::state_output_callback);
 
     this->DeclareAbstractState(*drake::AbstractValue::Make(drake::math::RigidTransformd()));
-    this->DeclarePerStepUnrestrictedUpdateEvent(&AbbDriver::ee_publish);
 
     udp_thread_ = std::thread(&AbbDriver::udp_read, this);
 
-    tcp_connect();
+    int temp_tcp_sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in tcp_server_addr;
+
+    memset(&tcp_server_addr, 0, sizeof(tcp_server_addr));
+    tcp_server_addr.sin_family = AF_INET;
+    tcp_server_addr.sin_addr.s_addr = INADDR_ANY;
+    tcp_server_addr.sin_port = htons(TCP_CLIENT_PORT);
+
+    if (bind(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_server_addr), sizeof(tcp_server_addr)) < 0) {
+      perror("Failed to bind to port");
+      return;
+    }
+
+    if (listen(temp_tcp_sockfd_, 5) < 0) {
+      perror("listening failed");
+      return;
+    }
+
+    struct sockaddr_in tcp_client_addr;
+    socklen_t tcp_client_len;
+    
+    while (true) {
+        tcp_sockfd_ = accept(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_client_addr), &tcp_client_len);
+        if (tcp_sockfd_ < 0) {
+            perror("connection failed!");
+            continue;
+        } else {
+            break;
+        }
+    }
+
+    this->DeclarePerStepUnrestrictedUpdateEvent(&AbbDriver::ee_publish);
 }
 
 AbbDriver::~AbbDriver() {
     stop_threads.store(true);
     udp_thread_.join();
 
-    const char to_send[6] = "hello";
+    const char to_send[6] = "close";
     send(tcp_sockfd_, to_send, 5, 0);
 
     std::this_thread::sleep_for(std::chrono::microseconds(500));
@@ -50,12 +80,19 @@ AbbDriver::~AbbDriver() {
 }
 
 drake::systems::EventStatus AbbDriver::ee_publish(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const {
+    char temp_buf[1];
+    /*
+    if (recv(tcp_sockfd_, temp_buf, 1, MSG_PEEK | MSG_DONTWAIT) == 0) {
+        std::cout << "TCP connection is closed. Please restart the high level controller" << std::endl;
+        return drake::systems::EventStatus::Succeeded();
+    }*/
+
     auto transform = this->get_input_port().Eval<drake::math::RigidTransformd>(context);
-    if (transform.translation() == context.get_abstract_state<drake::math::RigidTransformd>(0).translation() && 
-        transform.rotation().ToQuaternionAsVector4() == context.get_abstract_state<drake::math::RigidTransformd>(0).rotation().ToQuaternionAsVector4()) {
+    auto& old_transform = context.get_abstract_state<drake::math::RigidTransformd>(0);
+    if (transform.IsExactlyEqualTo(old_transform)) {
         return drake::systems::EventStatus::Succeeded();
     }
-
+        
     char send_command[] = "movej";
     char data_to_send_buffer[5 + 7 * sizeof(float)];
     memcpy(data_to_send_buffer, send_command, 5);
@@ -63,7 +100,7 @@ drake::systems::EventStatus AbbDriver::ee_publish(const drake::systems::Context<
 
     for (size_t i = 0; i < 3; i++)
         float_data_to_send[i] = (float) transform.translation()[i] * 1000;
-    
+
     for (size_t i = 0; i < 4; i++)
         float_data_to_send[i+3] = (float) transform.rotation().ToQuaternionAsVector4()[i];
 
@@ -78,7 +115,8 @@ drake::systems::EventStatus AbbDriver::ee_publish(const drake::systems::Context<
     );
 
     memcpy(data_to_send_buffer+5, float_data_to_send, 7*sizeof(float));
-    send(tcp_sockfd_, (void*) data_to_send_buffer, sizeof(data_to_send_buffer), 0);
+
+    send(tcp_sockfd_, data_to_send_buffer, sizeof(data_to_send_buffer), 0);
 
     state->get_mutable_abstract_state<drake::math::RigidTransformd>(0) = transform;
 
@@ -139,43 +177,6 @@ void AbbDriver::udp_read() {
             state_mutex.unlock();
         }
     }
-}
-
-void AbbDriver::tcp_connect() {
-    printf("Waiting for the ABB to connect over TCP");
-    
-    int temp_tcp_sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
-    struct sockaddr_in tcp_server_addr;
-
-    memset(&tcp_server_addr, 0, sizeof(tcp_server_addr));
-    tcp_server_addr.sin_family = AF_INET;
-    tcp_server_addr.sin_addr.s_addr = INADDR_ANY;
-    tcp_server_addr.sin_port = htons(TCP_CLIENT_PORT);
-
-    if (bind(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_server_addr), sizeof(tcp_server_addr)) < 0) {
-      perror("Failed to bind to port");
-      return;
-    }
-
-    if (listen(temp_tcp_sockfd_, 5) < 0) {
-      perror("listening failed");
-      return;
-    }
-
-    struct sockaddr_in tcp_client_addr;
-    socklen_t tcp_client_len;
-    
-    while (true) {
-        tcp_sockfd_ = accept(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_client_addr), &tcp_client_len);
-        if (tcp_sockfd_ < 0) {
-            perror("connection failed!");
-            continue;
-        } else {
-            break;
-        }
-    }
-    printf("TCP is connected\n");
-
 }
 
 };

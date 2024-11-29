@@ -2,6 +2,10 @@
 #include "simulation/package_path.hpp"
 
 #include <iostream>
+#include <atomic>
+#include <chrono>
+#include <thread>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -25,7 +29,9 @@
 #include "egm.pb.h"
 
 namespace simulation {
+
     AbbMotionPlanner::AbbMotionPlanner(const std::string controller_ip) : 
+        server_ip_string_(controller_ip),
         plant_(drake::multibody::MultibodyPlant<double>(0.0))
     {
         {
@@ -34,6 +40,7 @@ namespace simulation {
             parser.AddModels(simulation::package_path::get_package_share_path("simulation") + "abb/ABB_irb1200.urdf");
             this->plant_.WeldFrames(this->plant_.world_frame(), this->plant_.GetFrameByName("base"));
             this->plant_.Finalize();
+            this->plant_context_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(*this->plant_.CreateDefaultContext()));
         }
 
         auto traj_to_copy_to_state = drake::trajectories::PathParameterizedTrajectory<double>(
@@ -42,44 +49,56 @@ namespace simulation {
         );
 
         this->traj_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(traj_to_copy_to_state));
-        this->max_speed_state_index_ = this->DeclareDiscreteState(1);
-        this->old_goal_state_index_ = this->DeclareDiscreteState(7);
-        this->old_time_state_index_ = this->DeclareDiscreteState(1);
+        this->ee_pose_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(drake::math::RigidTransformd()));
 
-        auto& target_ee_location = this->DeclareAbstractInputPort("target_ee_location", *drake::AbstractValue::Make(geometry_msgs::msg::Pose()));
-        this->target_ee_location_abstract_input_port_index_ = target_ee_location.get_index();
+        this->max_speed_state_index_ = this->DeclareDiscreteState(Eigen::Vector<double, 1>{0.3});
+        this->old_time_state_index_ = this->DeclareDiscreteState(1);
 
         auto& irb1200_estimated_state = this->DeclareVectorInputPort("irb1200_estimated_state", this->num_plant_states_*2);
         this->estimated_state_input_port_index_ = irb1200_estimated_state.get_index();
 
         auto& irb1200_desired_state = this->DeclareVectorOutputPort("irb1200_desired_state", this->num_plant_states_*2, &AbbMotionPlanner::calc_motion_output);
         this->desired_state_output_port_index_ = irb1200_desired_state.get_index();
-
-        this->DeclareInitializationDiscreteUpdateEvent(&AbbMotionPlanner::initialize_discrete);
-        this->DeclarePeriodicUnrestrictedUpdateEvent(0.01, 0.0, &AbbMotionPlanner::update_trajectory);
-
-        {
-            udp_sock_fd_ = socket(AF_INET, SOCK_DGRAM, 0);
-            if (udp_sock_fd_ < 0) {
-                perror("Failed to create a socket");
-                return;
-            }
-
-            memset(&udp_server_addr_, 0, sizeof(udp_server_addr_));
-            udp_server_addr_.sin_family = AF_INET;
-            udp_server_addr_.sin_addr.s_addr = inet_addr(controller_ip.c_str());
-            udp_server_addr_.sin_port = htons(3842);
-
-            udp_server_addr_ptr_ = reinterpret_cast<sockaddr*>(&udp_server_addr_);
-
-            // Prototype message: sendto(udp_sock_fd_, "hello", 5, 0, reinterpret_cast<sockaddr*>(&udp_server_addr_), sizeof(udp_server_addr_));
+        
+        udp_sock_fd_ = socket(AF_INET, SOCK_DGRAM, 0);
+        if (udp_sock_fd_ < 0) {
+            perror("Failed to create a socket\n");
+            return;
         }
 
+        memset(&udp_server_addr_, 0, sizeof(udp_server_addr_));
+        udp_server_addr_.sin_family = AF_INET;
+        udp_server_addr_.sin_addr.s_addr = inet_addr(server_ip_string_.c_str());
+        udp_server_addr_.sin_port = htons(3842);
+
+        udp_server_addr_ptr_ = reinterpret_cast<sockaddr*>(&udp_server_addr_);  
+
         this->DeclarePeriodicPublishEvent(0.004, 0.0, &AbbMotionPlanner::udp_send);
+
+        tcp_sock_fd_ = socket(AF_INET, SOCK_STREAM  /*| SOCK_NONBLOCK*/, 0);
+        if (tcp_sock_fd_ < 0) {
+            perror("Creating the TCP socket failed\n");
+            return;
+        }
+
+        memset(&tcp_server_addr_, 0, sizeof(tcp_server_addr_));
+        tcp_server_addr_.sin_family = AF_INET;
+        tcp_server_addr_.sin_addr.s_addr = inet_addr(server_ip_string_.c_str());
+        tcp_server_addr_.sin_port = htons(5555);
+
+        if (connect(tcp_sock_fd_, reinterpret_cast<sockaddr*>(&tcp_server_addr_), sizeof(tcp_server_addr_)) < 0) {
+            perror("Connecting to the TCP server failed\n");
+            return;
+        }
+
+        this->tcp_sock_open_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(true));
+
+        this->DeclarePerStepUnrestrictedUpdateEvent(&AbbMotionPlanner::update_trajectory);
     };
 
     AbbMotionPlanner::~AbbMotionPlanner() {
         close(udp_sock_fd_);
+        close(tcp_sock_fd_);
     }
 
     void AbbMotionPlanner::calc_motion_output(const drake::systems::Context<double>& context, drake::systems::BasicVector<double>* vector) const {
@@ -90,7 +109,7 @@ namespace simulation {
     };
 
     drake::systems::EventStatus AbbMotionPlanner::udp_send(const drake::systems::Context<double>& context) const {
-        Eigen::Vector<double, 6> current_position = this->get_estimated_state_input_port().Eval(context);
+        Eigen::VectorXd current_position = this->get_estimated_state_input_port().Eval(context);
 
         abb::egm::EgmRobot udp_msg;
         {
@@ -119,35 +138,56 @@ namespace simulation {
         auto msg_out = udp_msg.SerializeAsString();
 
         sendto(udp_sock_fd_, msg_out.c_str(), msg_out.size(), 0, udp_server_addr_ptr_, sizeof(udp_server_addr_));
-    }
 
-    drake::systems::EventStatus AbbMotionPlanner::initialize_discrete(const drake::systems::Context<double>& context, drake::systems::DiscreteValues<double>* value) const {
-        (void) context;
-        value->get_mutable_value(this->max_speed_state_index_) = Eigen::Vector<double, 1>{0.0};
-        value->get_mutable_value(this->old_goal_state_index_) = Eigen::Vector<double, 7>{0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0};
-        value->get_mutable_value(this->old_time_state_index_) = Eigen::Vector<double, 1>{0.0};
         return drake::systems::EventStatus::Succeeded();
     }
 
     drake::systems::EventStatus AbbMotionPlanner::update_trajectory(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const {
-        auto goal_ros2 = this->GetInputPort("target_ee_location").Eval<geometry_msgs::msg::Pose>(context);
-        auto old_goal = state->get_mutable_discrete_state(0).get_mutable_value();
-        auto new_goal = Eigen::Vector<double, 7>{goal_ros2.position.x, goal_ros2.position.y, goal_ros2.position.z, goal_ros2.orientation.w, goal_ros2.orientation.x, goal_ros2.orientation.y, goal_ros2.orientation.z};
-        if (old_goal == new_goal) {
+        if (!context.get_abstract_state<bool>(tcp_sock_open_index_)) {
             return drake::systems::EventStatus::Succeeded();
         }
-        else {
-            old_goal = new_goal;
+
+        /*{
+            char temp_buf[1];
+            if (recv(tcp_sock_fd_, temp_buf, 1, MSG_PEEK | MSG_DONTWAIT) == 0) {
+                int connect_val = connect(tcp_sock_fd_, reinterpret_cast<const sockaddr*>(&tcp_server_addr_), sizeof(tcp_server_addr_));
+                if (connect_val < 0) {
+                    return drake::systems::EventStatus::Succeeded();
+                }
+            }
+        }*/
+
+        char msg_buffer[1024] = {0};
+        ssize_t recv_len = recv(tcp_sock_fd_, msg_buffer, 1024, MSG_DONTWAIT);
+
+        if (recv_len < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            return drake::systems::EventStatus::Succeeded();
+        } else if (recv_len < 0) {
+            perror("failed to recieve message");
         }
 
-        auto goal = drake_ros::core::RosPoseToRigidTransform(goal_ros2);
+        drake::math::RigidTransformd goal;
+        if (recv_len < 6 && strncmp("close", msg_buffer, recv_len) == 0) {
+            state->get_mutable_abstract_state<bool>(tcp_sock_open_index_) = false;
+            close(tcp_sock_fd_);
+            return drake::systems::EventStatus::Succeeded();
+        } else if (strncmp("movej", msg_buffer, 5) == 0) {
+            if (recv_len == 33) {
+                float* target_ee_pose = (float*)(msg_buffer + 5);
+                goal.set_translation(Eigen::Vector3d(target_ee_pose[0], target_ee_pose[1], target_ee_pose[2]) / 1000);
+                goal.set_rotation(Eigen::Quaterniond(target_ee_pose[3], target_ee_pose[4], target_ee_pose[5], target_ee_pose[6]));
+                std::cout << "Goal: " << goal << "\n";
+            } else {
+                return drake::systems::EventStatus::Succeeded();
+            }
+        }
 
-        auto& mutable_abstract_state = state->get_mutable_abstract_state();
-        auto& mutable_context = mutable_abstract_state.get_mutable_value(0).get_mutable_value<drake::systems::Context<double>>();
+        auto& mutable_context = state->get_mutable_abstract_state<drake::systems::Context<double>>(this->plant_context_index_);
         this->plant_.SetPositionsAndVelocities(&mutable_context, this->GetInputPort("irb1200_estimated_state").Eval(context));
 
         auto q0 = this->plant_.GetPositions(mutable_context);
         auto initial = this->plant_.GetBodyByName("gripper_frame").body_frame().CalcPoseInWorld(mutable_context);
+        goal.set_rotation(initial.rotation());
 
         auto distance = (goal.translation() - initial.translation()).norm();
         double end_time = distance / context.get_discrete_state(this->max_speed_state_index_).value()(0);
@@ -175,9 +215,9 @@ namespace simulation {
         if (!ik_result.is_success()) {
             std::cout << "Inverse kinematics failed. Results may not be accurate\n";
         }
-        
+
         auto q1 = this->plant_.GetPositions(ik_prog.context());
-                
+
         Eigen::Matrix<double, 6, 2> M;
         M << q0, q1;
 
@@ -189,18 +229,11 @@ namespace simulation {
             Eigen::Vector<double, 1>::Zero()
         );
 
-        mutable_abstract_state.get_mutable_value(1).get_mutable_value<drake::trajectories::PathParameterizedTrajectory<double>>() 
+        state->get_mutable_abstract_state<drake::trajectories::PathParameterizedTrajectory<double>>(this->traj_index_)
             = drake::trajectories::PathParameterizedTrajectory<double>(linear_traj, time_scaling);
-
-        state->get_mutable_discrete_state(1).get_mutable_value() = Eigen::Vector<double, 1>{context.get_time()};
-
+        state->get_mutable_discrete_state(this->old_time_state_index_).get_mutable_value() = Eigen::Vector<double, 1>{context.get_time()};
         return drake::systems::EventStatus::Succeeded();
     };
-
-
-    const drake::systems::InputPort<double>& AbbMotionPlanner::get_target_ee_location_input_port() const {
-        return this->get_input_port(this->target_ee_location_abstract_input_port_index_);
-    }
 
     const drake::systems::InputPort<double>& AbbMotionPlanner::get_estimated_state_input_port() const {
         return this->get_input_port(this->estimated_state_input_port_index_);

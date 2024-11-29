@@ -10,28 +10,29 @@
 
 #include <drake_ros2_interface/drake_ros2_interface.hpp>
 
+// #define LOG_OUT
+
 int main() {
   int in;
   auto builder = drake::systems::DiagramBuilder<double>();
 
-  // builder.AddSystem<drake_ros2_interface::DrakeRos2Interface>(0.02);
   auto abb_driver = builder.AddSystem<controller::AbbDriver>();
 
+  #ifdef LOG_OUT
   auto sink = builder.AddSystem<drake::systems::VectorLogSink<double>>(6, 0.001);
+  builder.Connect(abb_driver->get_output_port(), sink->get_input_port());
+  #endif
+
   auto source = builder.AddSystem<drake::systems::ConstantValueSource<double>>(
     *drake::AbstractValue::Make(
       drake::math::RigidTransformd(
-        drake::math::RotationMatrixd::MakeYRotation(M_PI_2f64),
+        drake::math::RotationMatrixd(), // ::MakeYRotation(M_PI_2f64),
         Eigen::Vector3d{0.6, 0.0, 0.9}
       )
     )
   );
 
   builder.Connect(source->get_output_port(), abb_driver->get_input_port());
-  builder.Connect(abb_driver->get_output_port(), sink->get_input_port());
-
-  std::cout << "I'm ready to build\n";
-  std::cin >> in;
 
   auto diagram = builder.Build();
 
@@ -41,8 +42,12 @@ int main() {
   auto sim = drake::systems::Simulator<double>(std::move(diagram));
 
   sim.set_target_realtime_rate(1.0);
-  sim.AdvanceTo(10.0);
 
+  while (true) {
+    sim.AdvanceTo(10.0);
+  }
+
+  #ifdef LOG_OUT
   {
     std::ofstream file;
     file.open("/home/alexm/simulation_logs/abb_network_log.txt");
@@ -62,6 +67,7 @@ int main() {
 	    std::cout << "Failed to open abb log file '" << "abb_network_log.txt" << "'\n";
     }
   }
+  #endif
 
 
   return 0;
