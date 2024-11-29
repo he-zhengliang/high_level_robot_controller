@@ -13,8 +13,8 @@
 
 #include "egm.pb.h"
 
-#define UDP_SERVER_PORT 3842
-#define TCP_CLIENT_PORT 5555
+#define UDP_CLIENT_PORT 3842
+#define TCP_SERVER_PORT 5555
 
 namespace controller {
 
@@ -38,8 +38,8 @@ AbbDriver::AbbDriver() :
 
     memset(&tcp_server_addr, 0, sizeof(tcp_server_addr));
     tcp_server_addr.sin_family = AF_INET;
-    tcp_server_addr.sin_addr.s_addr = INADDR_ANY;
-    tcp_server_addr.sin_port = htons(TCP_CLIENT_PORT);
+    tcp_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    tcp_server_addr.sin_port = htons(TCP_SERVER_PORT);
 
     if (bind(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_server_addr), sizeof(tcp_server_addr)) < 0) {
       perror("Failed to bind to port");
@@ -53,7 +53,7 @@ AbbDriver::AbbDriver() :
 
     struct sockaddr_in tcp_client_addr;
     socklen_t tcp_client_len;
-    
+
     while (true) {
         tcp_sockfd_ = accept(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_client_addr), &tcp_client_len);
         if (tcp_sockfd_ < 0) {
@@ -63,6 +63,8 @@ AbbDriver::AbbDriver() :
             break;
         }
     }
+
+    close(temp_tcp_sockfd_);
 
     this->DeclarePerStepUnrestrictedUpdateEvent(&AbbDriver::ee_publish);
 }
@@ -80,13 +82,6 @@ AbbDriver::~AbbDriver() {
 }
 
 drake::systems::EventStatus AbbDriver::ee_publish(const drake::systems::Context<double>& context, drake::systems::State<double>* state) const {
-    char temp_buf[1];
-    /*
-    if (recv(tcp_sockfd_, temp_buf, 1, MSG_PEEK | MSG_DONTWAIT) == 0) {
-        std::cout << "TCP connection is closed. Please restart the high level controller" << std::endl;
-        return drake::systems::EventStatus::Succeeded();
-    }*/
-
     auto transform = this->get_input_port().Eval<drake::math::RigidTransformd>(context);
     auto& old_transform = context.get_abstract_state<drake::math::RigidTransformd>(0);
     if (transform.IsExactlyEqualTo(old_transform)) {
@@ -146,7 +141,7 @@ void AbbDriver::udp_read() {
     memset(&udp_server_addr, 0, sizeof(udp_server_addr));
     udp_server_addr.sin_family = AF_INET;
     udp_server_addr.sin_addr.s_addr = INADDR_ANY;
-    udp_server_addr.sin_port = htons(UDP_SERVER_PORT);
+    udp_server_addr.sin_port = htons(UDP_CLIENT_PORT);
 
     if (bind(sockfd, reinterpret_cast<sockaddr*>(&udp_server_addr), sizeof(udp_server_addr)) < 0) {
         perror("Failed to bind to port");

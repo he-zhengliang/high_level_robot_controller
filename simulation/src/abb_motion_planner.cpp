@@ -75,7 +75,8 @@ namespace simulation {
 
         this->DeclarePeriodicPublishEvent(0.004, 0.0, &AbbMotionPlanner::udp_send);
 
-        tcp_sock_fd_ = socket(AF_INET, SOCK_STREAM  /*| SOCK_NONBLOCK*/, 0);
+        tcp_sock_fd_ = socket(AF_INET, SOCK_STREAM, 0);
+
         if (tcp_sock_fd_ < 0) {
             perror("Creating the TCP socket failed\n");
             return;

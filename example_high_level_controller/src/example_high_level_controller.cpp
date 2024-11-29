@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <signal.h>
 
 #include <drake/systems/framework/diagram_builder.h>
 #include <drake/systems/primitives/vector_log_sink.h>
@@ -11,6 +12,12 @@
 #include <drake_ros2_interface/drake_ros2_interface.hpp>
 
 // #define LOG_OUT
+std::atomic_bool continue_sim = true;
+void check_for_stop_signal() {
+  int x;
+  std::cin >> x;
+  continue_sim = false;
+}
 
 int main() {
   int in;
@@ -43,9 +50,13 @@ int main() {
 
   sim.set_target_realtime_rate(1.0);
 
-  while (true) {
-    sim.AdvanceTo(10.0);
+  std::thread stop_thread(check_for_stop_signal);
+
+  while (continue_sim) {
+    sim.AdvanceTo(sim.get_context().get_time() + 0.2);
   }
+
+  stop_thread.join();
 
   #ifdef LOG_OUT
   {
