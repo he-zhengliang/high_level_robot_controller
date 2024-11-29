@@ -28,6 +28,9 @@ cd ..
 # Download all the packages required for building the package using rosdep
 # rosdep may have some required setup steps if you haven't used it yet
 # If so the following command should guide you through the required setup steps
+# before install the dependance initialize your rosdep and Recommended: please run rosdep update
+sudo rosdep init
+rosdep update
 rosdep install --from-paths src -ryi
 
 # Build the package using colcon with Release build type
