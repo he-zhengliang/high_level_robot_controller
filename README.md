@@ -34,7 +34,7 @@ rosdep update
 rosdep install --from-paths src -ryi
 
 # Build the package using colcon with Release build type
-colcon build -DCMAKE_BUILD_TYPE=Release
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 # Source the drake-ros workspace so other packages can reference it
 source install/local_setup.bash
