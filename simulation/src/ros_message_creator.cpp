@@ -57,18 +57,4 @@ void SvhJointStateMessageCreator::create_message(const drake::systems::Context<d
     message->effort = std::vector<double>(effort.begin(), effort.end());
 }
 
-AbbJointStateMessageCreator::AbbJointStateMessageCreator() {
-    this->DeclareVectorInputPort("abb_state", 12);
-    this->DeclareAbstractOutputPort("joint_state_message", &AbbJointStateMessageCreator::create_message);
-}
-
-void AbbJointStateMessageCreator::create_message(const drake::systems::Context<double>& context, sensor_msgs::msg::JointState* message) const {
-    auto state = this->get_input_port(0).Eval(context);
-
-    *message = sensor_msgs::msg::JointState();
-
-    message->name = names;
-    message->position = std::vector<double>(state.data(), state.data() + 6 * sizeof(double));
-}
-
 };

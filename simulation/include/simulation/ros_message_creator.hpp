@@ -42,22 +42,5 @@ private:
     };
 };
 
-class AbbJointStateMessageCreator : public drake::systems::LeafSystem<double> {
-public:
-    explicit AbbJointStateMessageCreator();
-
-private:
-    void create_message(const drake::systems::Context<double>& context, sensor_msgs::msg::JointState* message) const;
-    
-    std::vector<std::string> names = {
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6"
-    };
-};
-
 };
 #endif
