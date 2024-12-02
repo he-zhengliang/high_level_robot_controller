@@ -85,12 +85,23 @@ namespace simulation {
         memset(&tcp_server_addr_, 0, sizeof(tcp_server_addr_));
         tcp_server_addr_.sin_family = AF_INET;
         tcp_server_addr_.sin_addr.s_addr = inet_addr(server_ip_string_.c_str());
-        tcp_server_addr_.sin_port = htons(5555);
+        tcp_server_addr_.sin_port = 5554;
 
-        if (connect(tcp_sock_fd_, reinterpret_cast<sockaddr*>(&tcp_server_addr_), sizeof(tcp_server_addr_)) < 0) {
-            perror("Connecting to the TCP server failed\n");
-            return;
+        while (true) {
+            if (connect(tcp_sock_fd_, reinterpret_cast<sockaddr*>(&tcp_server_addr_), sizeof(tcp_server_addr_)) < 0) {
+                if (errno == ECONNREFUSED) {
+                    tcp_server_addr_.sin_port++;
+                    continue;
+                }
+                perror("Connecting to the TCP server failed\n");
+                return;
+            }
+            else {
+                break;
+            }
         }
+
+        printf("Connected to port %u\n", tcp_server_addr_.sin_port);
 
         this->tcp_sock_open_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(true));
 

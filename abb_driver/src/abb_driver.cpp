@@ -14,7 +14,7 @@
 #include "egm.pb.h"
 
 #define UDP_CLIENT_PORT 3842
-#define TCP_SERVER_PORT 5555
+#define TCP_SERVER_PORT_START 5555
 
 namespace controller {
 
@@ -38,12 +38,23 @@ AbbDriver::AbbDriver() :
 
     memset(&tcp_server_addr, 0, sizeof(tcp_server_addr));
     tcp_server_addr.sin_family = AF_INET;
-    tcp_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    tcp_server_addr.sin_port = htons(TCP_SERVER_PORT);
+    tcp_server_addr.sin_addr.s_addr = INADDR_ANY;
+    tcp_server_addr.sin_port = TCP_SERVER_PORT_START - 1;
 
-    if (bind(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_server_addr), sizeof(tcp_server_addr)) < 0) {
-      perror("Failed to bind to port");
-      return;
+    while (true) {
+        if (bind(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_server_addr), sizeof(tcp_server_addr)) < 0) {
+            if (errno == EADDRINUSE) {
+                tcp_server_addr.sin_port++;
+                continue;
+            }
+            else {
+                perror("abb driver bind() failed");
+                return;
+            }
+        }
+        else {
+            break;
+        }
     }
 
     if (listen(temp_tcp_sockfd_, 5) < 0) {
@@ -52,11 +63,13 @@ AbbDriver::AbbDriver() :
     }
 
     struct sockaddr_in tcp_client_addr;
-    socklen_t tcp_client_len;
+    socklen_t tcp_client_len = sizeof(tcp_client_addr);
 
     while (true) {
         tcp_sockfd_ = accept(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_client_addr), &tcp_client_len);
         if (tcp_sockfd_ < 0) {
+            printf("client_len: %u\n", tcp_client_len);
+            printf("errno: %i\n", errno);
             perror("connection failed!");
             continue;
         } else {
