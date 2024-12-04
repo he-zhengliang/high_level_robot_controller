@@ -215,6 +215,7 @@ namespace simulation {
 
         if (!ik_result.is_success()) {
             std::cout << "Inverse kinematics failed. Results may not be accurate\n";
+            return drake::systems::EventStatus::Succeeded(); 
         }
 
         auto q1 = this->plant_.GetPositions(ik_prog.context());
