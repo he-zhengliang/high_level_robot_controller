@@ -159,16 +159,6 @@ namespace simulation {
             return drake::systems::EventStatus::Succeeded();
         }
 
-        /*{
-            char temp_buf[1];
-            if (recv(tcp_sock_fd_, temp_buf, 1, MSG_PEEK | MSG_DONTWAIT) == 0) {
-                int connect_val = connect(tcp_sock_fd_, reinterpret_cast<const sockaddr*>(&tcp_server_addr_), sizeof(tcp_server_addr_));
-                if (connect_val < 0) {
-                    return drake::systems::EventStatus::Succeeded();
-                }
-            }
-        }*/
-
         char msg_buffer[1024] = {0};
         ssize_t recv_len = recv(tcp_sock_fd_, msg_buffer, 1024, MSG_DONTWAIT);
 
@@ -199,7 +189,6 @@ namespace simulation {
 
         auto q0 = this->plant_.GetPositions(mutable_context);
         auto initial = this->plant_.GetBodyByName("gripper_frame").body_frame().CalcPoseInWorld(mutable_context);
-        goal.set_rotation(initial.rotation());
 
         auto distance = (goal.translation() - initial.translation()).norm();
         double end_time = distance / context.get_discrete_state(this->max_speed_state_index_).value()(0);
