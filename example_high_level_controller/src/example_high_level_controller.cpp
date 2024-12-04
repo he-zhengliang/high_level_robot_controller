@@ -39,15 +39,6 @@ int main() {
   builder.Connect(svh_driver->GetOutputPort("svh_effort"), svh_effort_sink->get_input_port());
   #endif
 
-  auto source = builder.AddSystem<drake::systems::ConstantValueSource<double>>(
-    *drake::AbstractValue::Make(
-      drake::math::RigidTransformd(
-        drake::math::RotationMatrixd(), // ::MakeYRotation(M_PI_2f64),
-        Eigen::Vector3d{0.6, 0.0, 0.9}
-      )
-    )
-  );
-
   drake::Vector<double, 18> svh_target;
   for (size_t i = 0; i < 9; i++) {
     svh_target[i] = 0.4;
@@ -55,10 +46,8 @@ int main() {
   }
   auto svh_source = builder.AddSystem<drake::systems::ConstantVectorSource<double>>(svh_target);
 
-  builder.Connect(source->get_output_port(), abb_driver->get_input_port());
   builder.Connect(svh_source->get_output_port(), svh_driver->get_input_port());
 
-*/
   builder.ExportInput(abb_driver->get_input_port(), "abb_input");
   
   auto diagram = builder.Build();
