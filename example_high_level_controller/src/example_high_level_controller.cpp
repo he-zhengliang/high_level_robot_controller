@@ -89,10 +89,6 @@ int main() {
         drake::math::RollPitchYawd(Eigen::Vector3d{roll * M_PIf64/180, pitch * M_PIf64/180, yaw * M_PIf64/180}), Eigen::Vector3d(x, y, z));
 
     fix_id.GetMutableData()->set_value<drake::math::RigidTransformd>(new_target);
-    // Update the source with the new target coordinates
-    // source->SetValue(source->GetMyContextFromRoot(sim.get_context()), new_target);
-
-    // Advance the simulation by a small time step
   }
 
   // Wait for the stop signal thread to finish
