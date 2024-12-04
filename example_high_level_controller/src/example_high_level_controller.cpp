@@ -12,6 +12,7 @@
 #include <drake_ros2_interface/drake_ros2_interface.hpp>
 
 // #define LOG_OUT
+
 std::atomic_bool continue_sim = true;
 void check_for_stop_signal() {
   int x;
@@ -23,40 +24,72 @@ int main() {
   int in;
   auto builder = drake::systems::DiagramBuilder<double>();
 
+  // Create an ABB driver system
   auto abb_driver = builder.AddSystem<controller::AbbDriver>();
 
-  #ifdef LOG_OUT
-  auto sink = builder.AddSystem<drake::systems::VectorLogSink<double>>(6, 0.001);
-  builder.Connect(abb_driver->get_output_port(), sink->get_input_port());
-  #endif
-
+  // Define the constant value source for the robot's target position 
+  /*
   auto source = builder.AddSystem<drake::systems::ConstantValueSource<double>>(
-    *drake::AbstractValue::Make(
-      drake::math::RigidTransformd(
-        drake::math::RotationMatrixd(), // ::MakeYRotation(M_PI_2f64),
-        Eigen::Vector3d{0.6, 0.0, 0.9}
+      *drake::AbstractValue::Make(
+          drake::math::RigidTransformd(
+              drake::math::RotationMatrixd(), 
+              Eigen::Vector3d{0.6, 0.0, 0.9} // Initial position
+          )
       )
-    )
   );
 
   builder.Connect(source->get_output_port(), abb_driver->get_input_port());
-
+*/
+  builder.ExportInput(abb_driver->get_input_port(), "abb_input");
+  
   auto diagram = builder.Build();
+  auto d_context = diagram->CreateDefaultContext();
 
-  std::cout << "I'm ready to run\n";
-  std::cin >> in;
+  auto& fix_id = diagram->GetInputPort("abb_input").FixValue(d_context.get(), drake::math::RigidTransformd(drake::math::RotationMatrixd(), Eigen::Vector3d{0.6, 0.0, 0.9}));
 
-  auto sim = drake::systems::Simulator<double>(std::move(diagram));
+
+  auto sim = drake::systems::Simulator<double>(std::move(diagram), std::move(d_context));
 
   sim.set_target_realtime_rate(1.0);
 
-  std::thread stop_thread(check_for_stop_signal);
+  // Start the stop signal listener thread
+  // std::thread stop_thread(check_for_stop_signal);
 
+    // Create the simulator
+  std::cout << "I'm ready to run\n";
+  std::cin >> in;
+
+  // Main loop to read user input and update robot arm position
   while (continue_sim) {
     sim.AdvanceTo(sim.get_context().get_time() + 0.2);
+
+    // Read input from user (6 values for the coordinates)
+    std::cout << "Enter new target coordinates (x, y, z, roll, pitch, yaw): ";
+    double x, y, z, roll, pitch, yaw;
+    std::cin >> x >> y >> z >> roll >> pitch >> yaw;
+
+    // If the input is valid, update the position
+    if (std::cin.fail()) {
+      std::cout << "Invalid input. Please enter six numerical values." << std::endl;
+      std::cin.clear(); // Clear the error flag
+      std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Discard invalid input
+      continue; // Skip to the next iteration of the loop
+    }
+
+    // Update the rigid transform target for the robot arm
+    drake::math::RigidTransformd new_target(
+        drake::math::RollPitchYawd(Eigen::Vector3d{roll * M_PIf64/180, pitch * M_PIf64/180, yaw * M_PIf64/180}), Eigen::Vector3d(x, y, z));
+
+    fix_id.GetMutableData()->set_value<drake::math::RigidTransformd>(new_target);
+    // Update the source with the new target coordinates
+    // source->SetValue(source->GetMyContextFromRoot(sim.get_context()), new_target);
+
+    // Advance the simulation by a small time step
   }
 
-  stop_thread.join();
+  // Wait for the stop signal thread to finish
+  // stop_thread.join();
+
 
   #ifdef LOG_OUT
   {
@@ -80,6 +113,6 @@ int main() {
   }
   #endif
 
-
+  printf("reached end of program\n");
   return 0;
 }

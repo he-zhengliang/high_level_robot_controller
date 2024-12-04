@@ -64,7 +64,7 @@ int main() {
     auto joint_trajectory = builder.AddSystem(drake_ros::core::RosSubscriberSystem::Make<trajectory_msgs::msg::JointTrajectory>("/left_hand/joint_trajectory", qos, ros_system->get_ros_interface()));
 
     // Add ABB Motion Planner which takes a pose and gives commands to the ABB to interpolate between the current point and the target point
-    auto abb_motion_planner = builder.AddSystem<simulation::AbbMotionPlanner>("172.22.78.115");
+    auto abb_motion_planner = builder.AddSystem<simulation::AbbMotionPlanner>("172.24.113.55");
 
     // Add Svh Motion Planner which takes a joint trajectory and converts it to a smoothly interpolated signal for the SVH motors
     auto svh_motion_planner = builder.AddSystem<simulation::SvhMotionPlanner>();

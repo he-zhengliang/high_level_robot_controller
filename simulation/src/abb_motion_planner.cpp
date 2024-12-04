@@ -199,7 +199,6 @@ namespace simulation {
 
         auto q0 = this->plant_.GetPositions(mutable_context);
         auto initial = this->plant_.GetBodyByName("gripper_frame").body_frame().CalcPoseInWorld(mutable_context);
-        goal.set_rotation(initial.rotation());
 
         auto distance = (goal.translation() - initial.translation()).norm();
         double end_time = distance / context.get_discrete_state(this->max_speed_state_index_).value()(0);
