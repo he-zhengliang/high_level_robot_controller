@@ -15,7 +15,7 @@
 #include <drake_ros/core/ros_subscriber_system.h>
 #include <drake_ros/core/clock_system.h>
 
-#include <control_msgs/msg/dynamic_joint_state.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 #include <std_msgs/msg/header.hpp>
 
@@ -38,7 +38,7 @@ using drake_ros::core::RosSubscriberSystem;
 
 using trajectory_msgs::msg::JointTrajectory;
 using trajectory_msgs::msg::JointTrajectoryPoint;
-using control_msgs::msg::DynamicJointState;
+using sensor_msgs::msg::JointState;
 using std_msgs::msg::Header;
 
 namespace {
@@ -55,30 +55,35 @@ const std::vector<std::string> joint_names = {
     "Left_Hand_Ring_Finger"
 };
 
-class SvhDynamicJointStateDecomposer : public LeafSystem<double> {
+class SvhJointStateDecomposer : public LeafSystem<double> {
 public:
-    SvhDynamicJointStateDecomposer(const float subscriber_sampling_period) {
-        this->DeclareAbstractInputPort("dynamic_joint_ros", *AbstractValue::Make<control_msgs::msg::DynamicJointState>());
+    SvhJointStateDecomposer(const float subscriber_sampling_period) {
+        this->DeclareAbstractInputPort("joint_state_ros", *AbstractValue::Make<JointState>());
         this->state_idx = this->DeclareDiscreteState(18);
         this->effort_idx = this->DeclareDiscreteState(9);
         this->DeclareStateOutputPort("svh_state", this->state_idx);
         this->DeclareStateOutputPort("svh_effort", this->effort_idx);
-        this->DeclarePeriodicDiscreteUpdateEvent(subscriber_sampling_period, 0.0, &SvhDynamicJointStateDecomposer::calc_state_output);
-        this->DeclareInitializationDiscreteUpdateEvent(&SvhDynamicJointStateDecomposer::calc_state_output);
+        this->DeclarePeriodicDiscreteUpdateEvent(subscriber_sampling_period, 0.0, &SvhJointStateDecomposer::calc_state_output);
+        this->DeclareInitializationDiscreteUpdateEvent(&SvhJointStateDecomposer::calc_state_output);
     }
 
 private:
     EventStatus calc_state_output(const Context<double>& context, DiscreteValues<double>* vector) const {
-        const auto input_message = this->get_input_port(0).Eval<DynamicJointState>(context);
-        vector->get_mutable_value(0);
-        for (unsigned long i = 0; i < input_message.joint_names.size(); i++) {
-            int idx = estimate_postition[i];
-            while (!input_message.joint_names[i].compare(joint_names[idx]))
-                idx++;
+        const auto& input_message = this->get_input_port(0).Eval<JointState>(context);
         
-            vector->get_mutable_value(0)[idx] = input_message.interface_values[idx].values[0];
-            vector->get_mutable_value(0)[idx+9] = input_message.interface_values[idx].values[1];
-            vector->get_mutable_value(1)[idx] = input_message.interface_values[idx].values[2];
+        size_t joint_names_size = input_message.name.size();
+        for (size_t i = 0; i < joint_names_size; i++) {
+            size_t idx = estimate_postition[i];
+            while (!input_message.name[i].compare(joint_names[idx])) {
+                idx++;
+                if (idx >= joint_names_size) {
+                    idx = 0;
+                }
+            }
+        
+            vector->get_mutable_value(0)[idx] = input_message.position[i];
+            vector->get_mutable_value(0)[idx+9] = input_message.velocity[i];
+            vector->get_mutable_value(1)[idx] = input_message.effort[i];
         }
 
         return EventStatus::Succeeded();
@@ -87,7 +92,7 @@ private:
     DiscreteStateIndex state_idx;
     DiscreteStateIndex effort_idx;
 
-    std::array<int, 9> estimate_postition = {3, 1, 5, 0, 8, 4, 7, 2, 6};
+    std::array<size_t, 9> estimate_postition = {3, 1, 5, 0, 8, 4, 7, 2, 6};
 
 };
 
@@ -126,8 +131,8 @@ DrakeRos2Interface::DrakeRos2Interface(const float publish_period, const float s
     builder.AddSystem<drake_ros::core::ClockSystem>();
 
     auto state_subscriber = builder.AddSystem(
-        RosSubscriberSystem::Make<DynamicJointState>(
-            "/dynamic_joint_states", 
+        RosSubscriberSystem::Make<JointState>(
+            "/joint_states", 
             qos, 
             interface->get_ros_interface()
         )
@@ -143,7 +148,7 @@ DrakeRos2Interface::DrakeRos2Interface(const float publish_period, const float s
         )
     );
 
-    auto state_translator = builder.AddSystem<SvhDynamicJointStateDecomposer>(subscriber_sample_period);
+    auto state_translator = builder.AddSystem<SvhJointStateDecomposer>(subscriber_sample_period);
     auto msg_builder = builder.AddSystem<SvhJointTrajectoryBuilder>();
 
     builder.Connect(state_subscriber->get_output_port(0), state_translator->get_input_port(0));

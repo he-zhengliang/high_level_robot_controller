@@ -64,7 +64,7 @@ namespace simulation {
         Eigen::VectorXd breaks;
         {
             breaks.resize(num_breaks);
-            breaks(0) = time;
+            breaks(0) = 0;
             size_t counter = 1;
             for (auto pt : jt.points) {
                 breaks(counter) = time + static_cast<double>(pt.time_from_start.sec) + static_cast<double>(pt.time_from_start.nanosec) * 1e-9;
@@ -84,7 +84,6 @@ namespace simulation {
         auto traj = context.get_abstract_state<drake::trajectories::PiecewisePolynomial<double>>(traj_state_idx);
 
         for (size_t i = 0; i < names.size(); i++) {
-            std::cout << names[i] << "\n";
 
             size_t index = 0;
             bool name_not_present = false;
@@ -98,9 +97,6 @@ namespace simulation {
                 index++;
             }
 
-            std::cout << "Index: " << index << "\n";
-            std::cout << "name_not_present: " << name_not_present << "\n";
-
             if (!name_not_present) {
                 for (size_t b = 1; b < num_breaks; b++) {
                     positions(i, b) = jt.points[b-1].positions[index];
@@ -113,8 +109,6 @@ namespace simulation {
                 }
             }
         }
-
-        std::cout << positions << "\n\n" << velocities << "\n\n";
 
         state->get_mutable_abstract_state<drake::trajectories::PiecewisePolynomial<double>>(traj_state_idx)
             = drake::trajectories::PiecewisePolynomial<double>::CubicHermite(breaks, positions, velocities);

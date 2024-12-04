@@ -48,7 +48,7 @@ int main() {
     // ROS2 publisher to output SVH JointStates  
     auto joint_output = builder.AddSystem(
         drake_ros::core::RosPublisherSystem::Make<sensor_msgs::msg::JointState>(
-            "/dynamic_joint_states", 
+            "/joint_states", 
             qos, 
             ros_system->get_ros_interface(),
             {drake::systems::TriggerType::kPeriodic},
