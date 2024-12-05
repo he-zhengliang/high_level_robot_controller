@@ -85,7 +85,7 @@ namespace simulation {
         memset(&tcp_server_addr_, 0, sizeof(tcp_server_addr_));
         tcp_server_addr_.sin_family = AF_INET;
         tcp_server_addr_.sin_addr.s_addr = inet_addr(server_ip_string_.c_str());
-        tcp_server_addr_.sin_port = 5554;
+        tcp_server_addr_.sin_port = htons(5554);
 
         while (true) {
             if (connect(tcp_sock_fd_, reinterpret_cast<sockaddr*>(&tcp_server_addr_), sizeof(tcp_server_addr_)) < 0) {

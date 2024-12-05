@@ -39,12 +39,14 @@ AbbDriver::AbbDriver() :
     memset(&tcp_server_addr, 0, sizeof(tcp_server_addr));
     tcp_server_addr.sin_family = AF_INET;
     tcp_server_addr.sin_addr.s_addr = INADDR_ANY;
-    tcp_server_addr.sin_port = TCP_SERVER_PORT_START - 1;
+    uint16_t temp_port_no = TCP_SERVER_PORT_START - 1;
+    tcp_server_addr.sin_port = htons(temp_port_no);
 
     while (true) {
         if (bind(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_server_addr), sizeof(tcp_server_addr)) < 0) {
             if (errno == EADDRINUSE) {
-                tcp_server_addr.sin_port++;
+                temp_port_no++;
+                tcp_server_addr.sin_port = htons(temp_port_no);
                 continue;
             }
             else {
@@ -53,8 +55,9 @@ AbbDriver::AbbDriver() :
             }
         }
         else {
+            printf("Bound to port %u", temp_port_no);
             break;
-        }
+        }   
     }
 
     if (listen(temp_tcp_sockfd_, 5) < 0) {
@@ -73,6 +76,7 @@ AbbDriver::AbbDriver() :
             perror("connection failed!");
             continue;
         } else {
+            printf("Accepted a connection\n");
             break;
         }
     }
