@@ -55,7 +55,7 @@ AbbDriver::AbbDriver() :
             }
         }
         else {
-            printf("Bound to port %u", temp_port_no);
+            printf("Bound to port %u\n", temp_port_no);
             break;
         }   
     }

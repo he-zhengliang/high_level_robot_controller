@@ -53,7 +53,7 @@ int main() {
   auto diagram = builder.Build();
   auto d_context = diagram->CreateDefaultContext();
 
-  auto& fix_id = diagram->GetInputPort("abb_input").FixValue(d_context.get(), drake::math::RigidTransformd(drake::math::RotationMatrixd(), Eigen::Vector3d{0.6, 0.0, 0.9}));
+  auto& fix_id = diagram->GetInputPort("abb_input").FixValue(d_context.get(), drake::math::RigidTransformd(drake::math::RollPitchYawd(-M_PIf64, -M_PI_2f64, 0), Eigen::Vector3d{0.6, 0.0, 0.9}));
 
 
   auto sim = drake::systems::Simulator<double>(std::move(diagram), std::move(d_context));
