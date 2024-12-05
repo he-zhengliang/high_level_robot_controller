@@ -162,16 +162,6 @@ namespace simulation {
             return drake::systems::EventStatus::Succeeded();
         }
 
-        /*{
-            char temp_buf[1];
-            if (recv(tcp_sock_fd_, temp_buf, 1, MSG_PEEK | MSG_DONTWAIT) == 0) {
-                int connect_val = connect(tcp_sock_fd_, reinterpret_cast<const sockaddr*>(&tcp_server_addr_), sizeof(tcp_server_addr_));
-                if (connect_val < 0) {
-                    return drake::systems::EventStatus::Succeeded();
-                }
-            }
-        }*/
-
         char msg_buffer[1024] = {0};
         ssize_t recv_len = recv(tcp_sock_fd_, msg_buffer, 1024, MSG_DONTWAIT);
 
@@ -230,6 +220,7 @@ namespace simulation {
 
         if (!ik_result.is_success()) {
             std::cout << "Inverse kinematics failed. Results may not be accurate\n";
+            return drake::systems::EventStatus::Succeeded(); 
         }
 
         auto q1 = this->plant_.GetPositions(ik_prog.context());
