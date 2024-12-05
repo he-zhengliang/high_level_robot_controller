@@ -78,7 +78,7 @@ namespace simulation {
 
         this->DeclarePeriodicPublishEvent(0.004, 0.0, &AbbMotionPlanner::udp_send);
 
-        tcp_sock_fd_ = socket(AF_INET, SOCK_STREAM, 0);
+        int temp_tcp_sock_fd_ = socket(AF_INET, SOCK_STREAM, 0);
 
         if (tcp_sock_fd_ < 0) {
             perror("Creating the TCP socket failed\n");
@@ -87,24 +87,43 @@ namespace simulation {
 
         memset(&tcp_server_addr_, 0, sizeof(tcp_server_addr_));
         tcp_server_addr_.sin_family = AF_INET;
-        tcp_server_addr_.sin_addr.s_addr = inet_addr(server_ip_string_.c_str());
-        tcp_server_addr_.sin_port = htons(5554);
+        tcp_server_addr_.sin_addr.s_addr = INADDR_ANY;
+        uint16_t temp_port_no = 5554;
+        tcp_server_addr_.sin_port = htons(temp_port_no);
 
         while (true) {
-            if (connect(tcp_sock_fd_, reinterpret_cast<sockaddr*>(&tcp_server_addr_), sizeof(tcp_server_addr_)) < 0) {
-                if (errno == ECONNREFUSED) {
-                    tcp_server_addr_.sin_port++;
+            if (bind(temp_tcp_sock_fd_, reinterpret_cast<sockaddr*>(&tcp_server_addr_), sizeof(tcp_server_addr_)) < 0) {
+                if (errno == EADDRINUSE) {
+                    temp_port_no++;
+                    tcp_server_addr_.sin_port = htons(temp_port_no);
                     continue;
                 }
-                perror("Connecting to the TCP server failed\n");
-                return;
+                else {
+                    perror("binding failed!");
+                    return;
+                }
             }
             else {
+                printf("Bound to port %u\n", temp_port_no);
                 break;
             }
         }
 
-        printf("Connected to port %u\n", tcp_server_addr_.sin_port);
+        sockaddr_in client_addr;
+        socklen_t client_addr_len = sizeof(client_addr);
+        memset(&client_addr, 0, sizeof(client_addr));
+
+        listen(temp_tcp_sock_fd_, 5);
+        tcp_sock_fd_ = accept(temp_tcp_sock_fd_, reinterpret_cast<sockaddr*>(&client_addr), &client_addr_len);
+        if (tcp_sock_fd_ < 0) {
+            perror("Failed to accept");
+            return;
+        }
+        
+        char buf[] = "Hello from the simulation";
+        send(tcp_sock_fd_, buf, sizeof(buf), 0);
+
+        close(temp_tcp_sock_fd_);
 
         this->tcp_sock_open_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(true));
 

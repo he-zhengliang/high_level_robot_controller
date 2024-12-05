@@ -9,7 +9,7 @@ namespace controller {
 
 class AbbDriver : public drake::systems::LeafSystem<double> {
 public:
-    explicit AbbDriver();
+    explicit AbbDriver(bool connect_to_simulation=false, std::string simulation_ip="");
     ~AbbDriver();
 
 private:

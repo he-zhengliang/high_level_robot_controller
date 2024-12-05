@@ -26,7 +26,7 @@ int main() {
   auto builder = drake::systems::DiagramBuilder<double>();
 
   // Create an ABB driver system
-  auto abb_driver = builder.AddSystem<controller::AbbDriver>();
+  auto abb_driver = builder.AddSystem<controller::AbbDriver>(true, "172.24.113.55");
 
   auto svh_driver = builder.AddSystem<drake_ros2_interface::DrakeRos2Interface>(0.01, 0.01);
 

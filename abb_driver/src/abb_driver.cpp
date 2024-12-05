@@ -14,14 +14,14 @@
 #include "egm.pb.h"
 
 #define UDP_CLIENT_PORT 3842
-#define TCP_SERVER_PORT_START 5555
+#define TCP_SERVER_PORT_START 5554
 
 namespace controller {
 
 std::mutex state_mutex;
 std::atomic_bool stop_threads = false;
 
-AbbDriver::AbbDriver() :
+AbbDriver::AbbDriver(bool connect_to_simulation, std::string simulation_ip) :
     thread_safe_state_{0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
     thread_safe_time_(0.0) {
     
@@ -33,55 +33,36 @@ AbbDriver::AbbDriver() :
 
     udp_thread_ = std::thread(&AbbDriver::udp_read, this);
 
-    int temp_tcp_sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
+    tcp_sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in tcp_server_addr;
 
     memset(&tcp_server_addr, 0, sizeof(tcp_server_addr));
     tcp_server_addr.sin_family = AF_INET;
-    tcp_server_addr.sin_addr.s_addr = INADDR_ANY;
-    uint16_t temp_port_no = TCP_SERVER_PORT_START - 1;
+    if (connect_to_simulation) {
+        tcp_server_addr.sin_addr.s_addr = inet_addr(simulation_ip.c_str());
+    } else {
+        tcp_server_addr.sin_addr.s_addr = inet_addr("192.168.125.1");
+    }
+    uint16_t temp_port_no = TCP_SERVER_PORT_START;
     tcp_server_addr.sin_port = htons(temp_port_no);
 
     while (true) {
-        if (bind(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_server_addr), sizeof(tcp_server_addr)) < 0) {
-            if (errno == EADDRINUSE) {
-                temp_port_no++;
-                tcp_server_addr.sin_port = htons(temp_port_no);
+        if (connect(tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_server_addr), sizeof(tcp_server_addr)) < 0) {
+            if (errno == ECONNREFUSED) {
+                tcp_server_addr.sin_port++;
                 continue;
             }
-            else {
-                perror("abb driver bind() failed");
-                return;
-            }
+            perror("Connecting to the TCP server failed");
+            return;
         }
         else {
-            printf("Bound to port %u\n", temp_port_no);
-            break;
-        }   
-    }
-
-    if (listen(temp_tcp_sockfd_, 5) < 0) {
-      perror("listening failed");
-      return;
-    }
-
-    struct sockaddr_in tcp_client_addr;
-    socklen_t tcp_client_len = sizeof(tcp_client_addr);
-
-    while (true) {
-        tcp_sockfd_ = accept(temp_tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_client_addr), &tcp_client_len);
-        if (tcp_sockfd_ < 0) {
-            printf("client_len: %u\n", tcp_client_len);
-            printf("errno: %i\n", errno);
-            perror("connection failed!");
-            continue;
-        } else {
-            printf("Accepted a connection\n");
             break;
         }
     }
 
-    close(temp_tcp_sockfd_);
+    char buff[1024];
+    ssize_t rec_len = recv(tcp_sockfd_, buff, 1024, 0);
+    printf("%.*s\n", rec_len, buff);
 
     this->DeclarePerStepUnrestrictedUpdateEvent(&AbbDriver::ee_publish);
 }
