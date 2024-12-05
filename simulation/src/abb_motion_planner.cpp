@@ -188,10 +188,7 @@ namespace simulation {
         this->plant_.SetPositionsAndVelocities(&mutable_context, this->GetInputPort("irb1200_estimated_state").Eval(context));
 
         auto q0 = this->plant_.GetPositions(mutable_context);
-        auto initial = this->plant_.GetBodyByName("gripper_frame").body_frame().CalcPoseInWorld(mutable_context);
-
-        auto distance = (goal.translation() - initial.translation()).norm();
-        double end_time = distance / context.get_discrete_state(this->max_speed_state_index_).value()(0);
+        // auto initial = this->plant_.GetBodyByName("gripper_frame").body_frame().CalcPoseInWorld(mutable_context);
 
         auto ik_prog = drake::multibody::InverseKinematics(this->plant_);
 
@@ -219,6 +216,10 @@ namespace simulation {
         }
 
         auto q1 = this->plant_.GetPositions(ik_prog.context());
+
+        auto max_angle_distance = (q1 - q0).cwiseAbs().maxCoeff();
+        auto max_speed = context.get_discrete_state(this->max_speed_state_index_).value()(0);
+        double end_time = max_angle_distance / max_speed;
 
         Eigen::Matrix<double, 6, 2> M;
         M << q0, q1;
