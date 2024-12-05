@@ -34,6 +34,7 @@ namespace simulation {
         drake::multibody::MultibodyPlant<double> plant_;
 
         drake::systems::AbstractStateIndex plant_context_index_;
+        drake::systems::AbstractStateIndex start_rotation_inv_index_;
         drake::systems::AbstractStateIndex traj_index_;
         drake::systems::AbstractStateIndex ee_pose_index_;
         drake::systems::AbstractStateIndex tcp_sock_open_index_;
