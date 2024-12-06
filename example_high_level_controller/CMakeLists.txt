@@ -10,7 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(drake REQUIRED)
 find_package(abb_driver REQUIRED)
 find_package(Protobuf REQUIRED)
-find_package(drake_ros2_interface REQUIRED)
+find_package(drake_ros2_schunk_interface REQUIRED)
 
 include_directories(${Protobuf_INCLUDE_DIRS})
 
@@ -25,7 +25,7 @@ target_link_libraries(example_high_level_controller
 
 ament_target_dependencies(example_high_level_controller
   abb_driver
-  drake_ros2_interface
+  drake_ros2_schunk_interface
 )
 
 install(TARGETS example_high_level_controller

@@ -1,5 +1,5 @@
 #include <drake/systems/framework/diagram_builder.h>
-#include "drake_ros2_interface/drake_ros2_interface.hpp"
+#include "drake_ros2_schunk_interface/drake_ros2_schunk_interface.hpp"
 #include <drake/systems/primitives/constant_vector_source.h>
 #include <drake/systems/primitives/vector_log_sink.h>
 #include <drake/systems/analysis/simulator.h>

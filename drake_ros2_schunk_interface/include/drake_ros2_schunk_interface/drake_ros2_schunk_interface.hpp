@@ -1,7 +1,7 @@
-#ifndef DRAKE_ROS2_INTERFACE__DRAKE_ROS2_INTERFACE_HPP_
-#define DRAKE_ROS2_INTERFACE__DRAKE_ROS2_INTERFACE_HPP_
+#ifndef DRAKE_ROS2_SCHUNK_INTERFACE__DRAKE_ROS2_INTERFACE_HPP_
+#define DRAKE_ROS2_SCHUNK_INTERFACE__DRAKE_ROS2_INTERFACE_HPP_
 
-#include "drake_ros2_interface/visibility_control.h"
+#include "drake_ros2_schunk_interface/visibility_control.h"
 
 #include <drake/systems/framework/diagram.h>
 

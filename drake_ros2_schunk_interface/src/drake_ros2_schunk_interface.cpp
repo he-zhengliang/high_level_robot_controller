@@ -1,4 +1,4 @@
-#include "drake_ros2_interface/drake_ros2_interface.hpp"
+#include "drake_ros2_schunk_interface/drake_ros2_schunk_interface.hpp"
 
 #include <iostream>
 #include <memory>

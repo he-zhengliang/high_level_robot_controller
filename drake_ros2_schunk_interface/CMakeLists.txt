@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(drake_ros2_interface)
+project(drake_ros2_schunk_interface)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -15,17 +15,17 @@ find_package(control_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(drake_ros REQUIRED)
 
-add_library(drake_ros2_interface src/drake_ros2_interface.cpp)
-target_compile_features(drake_ros2_interface PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-target_include_directories(drake_ros2_interface PUBLIC
+add_library(drake_ros2_schunk_interface src/drake_ros2_schunk_interface.cpp)
+target_compile_features(drake_ros2_schunk_interface PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_include_directories(drake_ros2_schunk_interface PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(drake_ros2_interface
+target_link_libraries(drake_ros2_schunk_interface
   drake::drake
   drake_ros::drake_ros_core
 )
-ament_target_dependencies(drake_ros2_interface
+ament_target_dependencies(drake_ros2_schunk_interface
   rclcpp
   trajectory_msgs
   control_msgs
@@ -34,7 +34,7 @@ ament_target_dependencies(drake_ros2_interface
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
-target_compile_definitions(drake_ros2_interface PRIVATE "DRAKE_ROS2_INTERFACE_BUILDING_LIBRARY")
+target_compile_definitions(drake_ros2_schunk_interface PRIVATE "DRAKE_ROS2_INTERFACE_BUILDING_LIBRARY")
 
 install(
   DIRECTORY include/
@@ -42,29 +42,29 @@ install(
 )
 
 install(
-  TARGETS drake_ros2_interface
+  TARGETS drake_ros2_schunk_interface
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
 
-add_executable(drake_ros2_interface_test test/main.cpp)
-target_compile_features(drake_ros2_interface PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-target_include_directories(drake_ros2_interface_test PUBLIC
+add_executable(drake_ros2_schunk_interface_test test/main.cpp)
+target_compile_features(drake_ros2_schunk_interface_test PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_include_directories(drake_ros2_schunk_interface_test PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(drake_ros2_interface_test
+target_link_libraries(drake_ros2_schunk_interface_test
   drake::drake
-  drake_ros2_interface
+  drake_ros2_schunk_interface
 )
-ament_target_dependencies(drake_ros2_interface_test
+ament_target_dependencies(drake_ros2_schunk_interface_test
   rclcpp
 )
 
 install(TARGETS
-  drake_ros2_interface_test
+  drake_ros2_schunk_interface_test
 DESTINATION
   lib/${PROJECT_NAME}
 )
@@ -85,7 +85,7 @@ ament_export_include_directories(
   include
 )
 ament_export_libraries(
-  drake_ros2_interface
+  drake_ros2_schunk_interface
 )
 ament_export_targets(
   export_${PROJECT_NAME}
