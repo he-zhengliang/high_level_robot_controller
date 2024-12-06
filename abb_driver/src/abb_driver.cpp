@@ -70,12 +70,6 @@ AbbDriver::AbbDriver(bool connect_to_simulation, std::string simulation_ip) :
 AbbDriver::~AbbDriver() {
     stop_threads.store(true);
     udp_thread_.join();
-
-    const char to_send[6] = "close";
-    send(tcp_sockfd_, to_send, 5, 0);
-
-    std::this_thread::sleep_for(std::chrono::microseconds(500));
-
     close(tcp_sockfd_);
 }
 

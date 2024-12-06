@@ -132,6 +132,8 @@ namespace simulation {
 
     AbbMotionPlanner::~AbbMotionPlanner() {
         close(udp_sock_fd_);
+        char buf[] = "close";
+        send(tcp_sock_fd_, buf, sizeof(buf), 0);
         close(tcp_sock_fd_);
     }
 
