@@ -60,8 +60,13 @@ colcon build
 # Source the workspace so ros2 commands can find the required packages
 source install/local_setup.bash
 ```
+5. Run autoattach.ps1 in powershell for usb detection in WSL, then windows can share the usb device with WSL. 
+The file is autoattach.ps1 in  folder of c:/document.
+
 6. Run any of the following applications
 ```bash
 ros2 run simulation simulation
 ros2 run abb_ros2_driver abb_ros2_driver
 ```
+
+
