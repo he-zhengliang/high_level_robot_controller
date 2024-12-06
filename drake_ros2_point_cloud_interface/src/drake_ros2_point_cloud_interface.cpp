@@ -33,7 +33,14 @@ private:
 
         output->Expand(output->size() + (pc1.height * pc1.width));
 
-        /*Code needed here to copy data from pc1 and pc2 into the output point cloud*/
+        // Maybe replace these asserts with a more dynamic check so it doesn't crash when there is an error
+        assert(!pc1.is_bigendian && !pc1.is_bigendian);
+        assert(pc1.point_step == 3*sizeof(float) + 4*sizeof(uint8_t));
+        assert(pc2.point_step == 3*sizeof(float) + 4*sizeof(uint8_t));
+        assert(pc1.is_dense && pc2.is_dense);
+        float* x = (float*) pc1.data.data();
+
+        output->mutable_xyzs() = Eigen::Map<Eigen::Matrix3Xf, 0, Eigen::Stride<3*sizeof(float) + 4*sizeof(unsigned char), 1>>((float*) pc1.data.data(), 2);
     }
 };
 
