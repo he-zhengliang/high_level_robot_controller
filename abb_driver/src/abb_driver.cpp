@@ -49,6 +49,11 @@ AbbDriver::AbbDriver(bool connect_to_simulation, std::string simulation_ip) :
     while (true) {
         if (connect(tcp_sockfd_, reinterpret_cast<sockaddr*>(&tcp_server_addr), sizeof(tcp_server_addr)) < 0) {
             if (errno == ECONNREFUSED) {
+                printf("Nothing at %u\n", ntohs(tcp_server_addr.sin_port));
+                if (ntohs(tcp_server_addr.sin_port) > 5560) {
+                    printf("Failed to find an open port\n");
+                    return;
+                }
                 tcp_server_addr.sin_port++;
                 continue;
             }

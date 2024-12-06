@@ -21,12 +21,20 @@ void check_for_stop_signal() {
   continue_sim = false;
 }
 
-int main() {
+int main(int argc, char** argv) {
   int in;
   auto builder = drake::systems::DiagramBuilder<double>();
 
   // Create an ABB driver system
-  auto abb_driver = builder.AddSystem<controller::AbbDriver>(true, "172.24.113.55");
+  bool simulation;
+  std::string ip_addr = "";
+  if (argc > 1) {
+    simulation = true;
+    ip_addr += std::string(argv[1]);
+  } else {
+    simulation = false;
+  }
+  auto abb_driver = builder.AddSystem<controller::AbbDriver>(simulation, ip_addr);
 
   auto svh_driver = builder.AddSystem<drake_ros2_interface::DrakeRos2Interface>(0.01, 0.01);
 

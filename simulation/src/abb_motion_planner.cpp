@@ -41,8 +41,6 @@ namespace simulation {
             this->plant_.WeldFrames(this->plant_.world_frame(), this->plant_.GetFrameByName("base"));
             this->plant_.Finalize();
             auto context = this->plant_.CreateDefaultContext();
-            auto start_position = this->plant_.GetBodyByName("gripper_frame").body_frame().CalcPoseInWorld(*context);
-            this->start_rotation_inv_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(drake::math::RigidTransformd(start_position.rotation())));
             this->plant_context_index_ = this->DeclareAbstractState(*drake::AbstractValue::Make(*context));
         }
 
@@ -205,8 +203,6 @@ namespace simulation {
                 return drake::systems::EventStatus::Succeeded();
             }
         }
-
-        goal = goal * context.get_abstract_state<drake::math::RigidTransformd>(this->start_rotation_inv_index_);
 
         auto& mutable_context = state->get_mutable_abstract_state<drake::systems::Context<double>>(this->plant_context_index_);
         this->plant_.SetPositionsAndVelocities(&mutable_context, this->GetInputPort("irb1200_estimated_state").Eval(context));
