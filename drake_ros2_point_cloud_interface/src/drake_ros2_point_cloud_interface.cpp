@@ -40,7 +40,7 @@ private:
         assert(pc1.is_dense && pc2.is_dense);
         float* x = (float*) pc1.data.data();
 
-        output->mutable_xyzs() = Eigen::Map<Eigen::Matrix3Xf, 0, Eigen::Stride<3*sizeof(float) + 4*sizeof(unsigned char), 1>>((float*) pc1.data.data(), 2);
+        output->mutable_xyzs() = Eigen::Map<Eigen::Matrix3Xf, 0, Eigen::Stride<3*sizeof(float) + 4*sizeof(unsigned char), 1>>((float*) pc1.data.data(), 3, 2);
     }
 };
 

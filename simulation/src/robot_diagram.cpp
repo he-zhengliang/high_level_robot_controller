@@ -68,7 +68,7 @@ RobotDiagram::RobotDiagram(
     scene_graph->collision_filter_manager().Apply(collision_filter);
 
     plant->WeldFrames(plant->world_frame(), plant->GetFrameByName("base"));
-    plant->WeldFrames(plant->GetFrameByName("gripper_frame"), plant->GetFrameByName("base_link"));
+    plant->WeldFrames(plant->GetFrameByName("gripper_frame"), plant->GetFrameByName("base_link"), drake::math::RigidTransformd(Eigen::Vector3d{0.0, 0.0, 0.1}));
 
     plant->Finalize();
 
